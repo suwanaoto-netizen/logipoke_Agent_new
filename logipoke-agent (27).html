@@ -1,0 +1,3399 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ロジポケAgent - 配車管理</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;600;700&family=Inter:wght@400;500;600;700&display=swap');
+
+  :root {
+    --sidebar-bg: #0D4A3A;
+    --sidebar-hover: #1a5c4a;
+    --sidebar-active: #EAF5F0;
+    --accent: #3BB888;
+    --accent-light: #6DD5A8;
+    --accent-pale: #EAF5F0;
+    --header-bg: #0D4A3A;
+    --status-bar: #0B3D2F;
+    --text-primary: #1a1a1a;
+    --text-secondary: #6b7280;
+    --text-muted: #9ca3af;
+    --border: #e5e7eb;
+    --bg: #f4f6f8;
+    --card-bg: #ffffff;
+    --orange: #f97316;
+    --orange-light: #fff7ed;
+    --orange-border: #fed7aa;
+    --green: #16a34a;
+    --green-light: #f0fdf4;
+    --green-border: #bbf7d0;
+    --blue: #2563eb;
+    --blue-light: #eff6ff;
+    --red: #dc2626;
+    --red-light: #fef2f2;
+    --yellow: #d97706;
+    --yellow-light: #fffbeb;
+    --unprocessed: #0D4A3A;
+    --processing: #1a7a5e;
+    --processed: #3BB888;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Noto Sans JP', sans-serif;
+    background: var(--bg);
+    color: var(--text-primary);
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    overflow: hidden;
+  }
+
+  /* ── グローバルヘッダー ── */
+  .global-header {
+    background: var(--header-bg);
+    height: 52px;
+    display: flex;
+    align-items: center;
+    padding: 0 20px;
+    gap: 12px;
+    flex-shrink: 0;
+    z-index: 100;
+    position: relative;
+  }
+  .logo-wrap {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .logo-icon {
+    width: 32px; height: 32px;
+    background: #fff;
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .logo-icon svg { width: 20px; height: 20px; }
+  .brand-name {
+    font-family: 'Inter', sans-serif;
+    font-size: 17px;
+    font-weight: 700;
+    color: #fff;
+    letter-spacing: 0.02em;
+  }
+  .brand-sub {
+    font-size: 10px;
+    font-weight: 400;
+    color: var(--accent-light);
+    margin-left: 2px;
+    letter-spacing: 0.05em;
+  }
+  .header-divider { width: 1px; height: 24px; background: rgba(255,255,255,0.2); margin: 0 8px; }
+  .header-tenant { font-size: 12px; color: rgba(255,255,255,0.7); }
+  .header-spacer { flex: 1; }
+  .header-right { display: flex; align-items: center; gap: 16px; }
+  .header-badge {
+    position: relative;
+    width: 32px; height: 32px;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+    color: rgba(255,255,255,0.8);
+  }
+  .header-badge-count {
+    position: absolute; top: 0; right: 0;
+    width: 16px; height: 16px;
+    background: #ef4444;
+    border-radius: 50%;
+    font-size: 9px; color: #fff;
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'Inter', sans-serif; font-weight: 700;
+  }
+  .header-user {
+    display: flex; align-items: center; gap: 8px;
+    cursor: pointer;
+  }
+  .header-avatar {
+    width: 32px; height: 32px;
+    background: var(--accent);
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px; color: #fff; font-weight: 600;
+  }
+  .header-user-info { display: flex; flex-direction: column; align-items: flex-end; }
+  .header-user-name { font-size: 12px; color: #fff; font-weight: 600; }
+  .header-user-dept { font-size: 10px; color: rgba(255,255,255,0.6); }
+
+  /* ── ステータスバー ── */
+  .status-bar {
+    background: var(--status-bar);
+    height: 34px;
+    display: flex;
+    align-items: center;
+    padding: 0 20px;
+    gap: 24px;
+    flex-shrink: 0;
+  }
+  .status-item {
+    display: flex; align-items: center; gap: 6px;
+    font-size: 11px; color: rgba(255,255,255,0.75);
+  }
+  .status-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent-light); animation: pulse 2s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+  .status-val { font-weight: 600; color: var(--accent-light); font-family: 'Inter', sans-serif; }
+
+  /* ── メインレイアウト ── */
+  .app-body {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+  }
+
+  /* ── サイドバー ── */
+  .sidebar {
+    width: 200px;
+    background: var(--sidebar-bg);
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+    padding: 16px 0;
+  }
+  .sidebar::-webkit-scrollbar { width: 4px; }
+  .sidebar::-webkit-scrollbar-track { background: transparent; }
+  .sidebar::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 4px; }
+
+  .sidebar-section-label {
+    font-size: 9px;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    color: rgba(255,255,255,0.35);
+    text-transform: uppercase;
+    padding: 10px 18px 4px;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .sidebar-section-label::before { content:''; width:5px; height:5px; border-radius:50%; background:var(--accent); flex-shrink:0; }
+
+  .nav-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 9px 18px;
+    cursor: pointer;
+    border-radius: 0;
+    transition: all 0.15s;
+    position: relative;
+    text-decoration: none;
+  }
+  .nav-item:hover { background: var(--sidebar-hover); }
+  .nav-item.active {
+    background: var(--sidebar-active);
+  }
+  .nav-item.active .nav-icon { color: var(--sidebar-bg); }
+  .nav-item.active .nav-label { color: var(--sidebar-bg); font-weight: 600; }
+  .nav-item.active::before {
+    content: '';
+    position: absolute; left: 0; top: 0; bottom: 0;
+    width: 3px; background: var(--sidebar-bg);
+    border-radius: 0 3px 3px 0;
+  }
+  .nav-icon { color: rgba(255,255,255,0.6); flex-shrink: 0; }
+  .nav-icon svg { width: 17px; height: 17px; stroke-width: 1.8; }
+  .nav-label { font-size: 13px; color: rgba(255,255,255,0.8); white-space: nowrap; }
+  .nav-badge {
+    margin-left: auto;
+    background: var(--red);
+    color: #fff;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 1px 6px;
+    border-radius: 10px;
+    font-family: 'Inter', sans-serif;
+  }
+  .nav-badge.green { background: var(--accent); }
+  .nav-badge.orange { background: var(--orange); }
+  .agent-tag {
+    margin-left: auto;
+    background: var(--sidebar-bg);
+    color: var(--accent-light);
+    font-size: 9px;
+    font-weight: 600;
+    padding: 2px 6px;
+    border-radius: 4px;
+    border: 1px solid rgba(109,213,168,0.4);
+    letter-spacing: 0.05em;
+  }
+
+  /* ── メインコンテンツ ── */
+  .main-content {
+    flex: 1;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .page { display: none; height: 100%; flex-direction: column; overflow: hidden; }
+  .page.active { display: flex; }
+
+  /* ── ページヘッダー ── */
+  .page-header {
+    background: var(--card-bg);
+    border-bottom: 1px solid var(--border);
+    padding: 0 24px;
+    flex-shrink: 0;
+    display: flex;
+    align-items: stretch;
+    gap: 0;
+    min-height: 62px;
+  }
+  .page-header-left {
+    display: flex; align-items: center; gap: 10px;
+    padding: 0 16px 0 0; flex-shrink: 0;
+  }
+  .page-title { font-size: 18px; font-weight: 700; color: var(--text-primary); }
+
+  .phase-tabs {
+    display: flex; gap: 0;
+    margin-left: auto;
+    align-items: stretch;
+    border-left: 1px solid var(--border);
+  }
+  .phase-tab {
+    position: relative;
+    padding: 0 26px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.18s;
+    color: var(--text-secondary);
+    white-space: nowrap;
+    display: flex; align-items: center; gap: 8px;
+    border: none; background: transparent;
+    border-bottom: 3px solid transparent;
+    border-top: 3px solid transparent;
+    border-right: 1px solid var(--border);
+    letter-spacing: 0.01em;
+  }
+  .phase-tab:hover:not(.active) {
+    color: var(--text-primary);
+    background: #f9fafb;
+  }
+  .phase-tab svg { transition: stroke .18s; }
+  .phase-tab .tab-count {
+    font-family: 'Inter', sans-serif;
+    font-size: 11px;
+    font-weight: 800;
+    padding: 2px 8px;
+    border-radius: 20px;
+    background: #e5e7eb;
+    color: var(--text-secondary);
+    transition: all .18s;
+  }
+  /* 未処理・処理中のバッジは常に赤（0件時はグレー） */
+  .phase-tab.unprocessed .tab-count,
+  .phase-tab.processing .tab-count {
+    background: var(--red);
+    color: #fff;
+  }
+  .phase-tab.unprocessed .tab-count[data-zero="true"],
+  .phase-tab.processing .tab-count[data-zero="true"] {
+    background: #e5e7eb;
+    color: var(--text-secondary);
+  }
+  /* 未処理：深緑（濃） */
+  .phase-tab.unprocessed.active {
+    color: #0D4A3A;
+    background: #e8f5f0;
+    border-bottom-color: #0D4A3A;
+  }
+  .phase-tab.unprocessed.active .tab-count { background: var(--red); color: #fff; }
+  .phase-tab.unprocessed.active .tab-count[data-zero="true"] { background: #e5e7eb; color: var(--text-secondary); }
+  .phase-tab.unprocessed.active svg { stroke: #0D4A3A; }
+
+  /* 処理中：中緑（中） */
+  .phase-tab.processing.active {
+    color: #1a7a5e;
+    background: #eaf6f1;
+    border-bottom-color: #1a7a5e;
+  }
+  .phase-tab.processing.active .tab-count { background: var(--red); color: #fff; }
+  .phase-tab.processing.active .tab-count[data-zero="true"] { background: #e5e7eb; color: var(--text-secondary); }
+  .phase-tab.processing.active svg { stroke: #1a7a5e; }
+
+  /* 処理済み：明緑（淡） */
+  .phase-tab.processed.active {
+    color: #3BB888;
+    background: #f0fbf6;
+    border-bottom-color: #3BB888;
+  }
+  .phase-tab.processed.active .tab-count { background: #3BB888; color: #fff; }
+  .phase-tab.processed.active svg { stroke: #3BB888; }
+
+  /* ── フェーズコンテンツ ── */
+  .phase-content { display: none; flex: 1; overflow: hidden; }
+  .phase-content.active { display: flex; }
+
+  /* ── 未処理フェーズ ── */
+  .unprocessed-layout {
+    display: flex;
+    width: 100%;
+    overflow: hidden;
+    gap: 0;
+  }
+  .case-list-panel {
+    width: 340px;
+    flex-shrink: 0;
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    background: var(--card-bg);
+  }
+  .panel-toolbar {
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border);
+    display: flex; gap: 8px; flex-wrap: wrap;
+    flex-shrink: 0;
+    background: #fafafa;
+  }
+  .toolbar-select {
+    font-size: 12px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 4px 8px;
+    background: #fff;
+    color: var(--text-primary);
+    cursor: pointer;
+  }
+  .panel-cases { overflow-y: auto; flex: 1; }
+  .panel-cases::-webkit-scrollbar { width: 4px; }
+  .panel-cases::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+
+  .case-card {
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--border);
+    cursor: pointer;
+    transition: background 0.1s;
+    position: relative;
+  }
+  .case-card:hover { background: #f9fafb; }
+  .case-card.selected { background: var(--accent-pale); border-left: 3px solid var(--accent); }
+  .case-card-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; margin-bottom: 6px; }
+  .case-no { font-family: 'Inter', sans-serif; font-size: 11px; color: var(--text-muted); }
+  .case-status-badge {
+    font-size: 10px; font-weight: 600; padding: 2px 8px; border-radius: 10px;
+    white-space: nowrap; flex-shrink: 0;
+  }
+  .badge-unanalyzed { background: #fee2e2; color: #dc2626; }
+  .badge-checking { background: #fef9c3; color: #d97706; }
+  .badge-analyzed { background: #dcfce7; color: #16a34a; }
+  .badge-urgent { background: #fee2e2; color: #dc2626; }
+  .badge-normal { background: #f3f4f6; color: #6b7280; }
+  .badge-processing { background: #fed7aa; color: #c2410c; }
+  .badge-done { background: #d1fae5; color: #065f46; }
+
+  .case-client { font-size: 13px; font-weight: 600; margin-bottom: 4px; }
+  .case-route { font-size: 11px; color: var(--text-secondary); margin-bottom: 4px; display: flex; align-items: center; gap: 4px; }
+  .case-meta { display: flex; gap: 8px; flex-wrap: wrap; }
+  .case-meta-item { font-size: 10px; color: var(--text-muted); display: flex; align-items: center; gap: 3px; }
+  .case-actions-mini { display: flex; gap: 6px; margin-top: 8px; }
+
+  .btn { 
+    display: inline-flex; align-items: center; justify-content: center; gap: 5px;
+    padding: 7px 14px; border-radius: 7px; font-size: 12px; font-weight: 600;
+    cursor: pointer; border: none; transition: all 0.15s; white-space: nowrap;
+  }
+  .btn-primary { background: var(--sidebar-bg); color: #fff; }
+  .btn-primary:hover { background: #0a3d2f; }
+  .btn-accent { background: var(--accent); color: #fff; }
+  .btn-accent:hover { background: #2da070; }
+  .btn-secondary { background: #f3f4f6; color: var(--text-primary); border: 1px solid var(--border); }
+  .btn-secondary:hover { background: #e9ecf0; }
+  .btn-outline { background: #fff; color: var(--sidebar-bg); border: 1.5px solid var(--sidebar-bg); }
+  .btn-outline:hover { background: var(--accent-pale); }
+  .btn-orange { background: var(--sidebar-bg); color: #fff; }
+  .btn-orange:hover { background: #0a3d2f; }
+  .btn-sm { padding: 5px 10px; font-size: 11px; border-radius: 6px; }
+  .btn-lg { padding: 10px 20px; font-size: 14px; border-radius: 8px; }
+
+  .detail-panel {
+    flex: 1;
+    overflow-y: auto;
+    padding: 20px;
+    background: var(--bg);
+  }
+  .detail-panel::-webkit-scrollbar { width: 4px; }
+  .detail-panel::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+
+  .detail-card {
+    background: var(--card-bg);
+    border-radius: 12px;
+    border: 1px solid var(--border);
+    margin-bottom: 16px;
+    overflow: hidden;
+  }
+  .detail-card-header {
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; gap: 8px;
+    background: #fafafa;
+  }
+  .detail-card-title { font-size: 13px; font-weight: 600; }
+  .detail-card-badge {
+    margin-left: auto;
+    font-size: 10px; font-weight: 700;
+    padding: 2px 8px; border-radius: 10px;
+  }
+  .badge-high { background: #fee2e2; color: #dc2626; }
+  .badge-medium { background: #fef9c3; color: #d97706; }
+  .badge-low { background: #f3f4f6; color: #6b7280; }
+  .detail-card-body { padding: 14px 16px; }
+
+  .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .info-item { display: flex; flex-direction: column; gap: 2px; }
+  .info-label { font-size: 10px; color: var(--text-muted); font-weight: 500; }
+  .info-value { font-size: 13px; font-weight: 500; }
+
+  .audio-player {
+    background: #f8fafc;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 14px;
+    display: flex; align-items: center; gap: 10px;
+    margin-top: 10px;
+  }
+  .audio-play-btn {
+    width: 30px; height: 30px;
+    background: var(--sidebar-bg); border: none; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; flex-shrink: 0; color: #fff;
+  }
+  .waveform { flex: 1; display: flex; align-items: center; gap: 2px; height: 28px; }
+  .waveform-bar { width: 3px; border-radius: 2px; background: var(--accent); opacity: 0.6; }
+  .audio-time { font-family: 'Inter', sans-serif; font-size: 11px; color: var(--text-muted); }
+  .audio-speed {
+    font-size: 10px; font-weight: 600; color: var(--text-secondary);
+    border: 1px solid var(--border); border-radius: 4px; padding: 1px 5px;
+  }
+
+  /* ── 車両候補テーブル ── */
+  .vehicle-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  .vehicle-table th { 
+    background: #f3f4f6; padding: 7px 10px; text-align: left;
+    font-size: 10px; font-weight: 600; color: var(--text-secondary);
+    border-bottom: 1px solid var(--border);
+  }
+  .vehicle-table td { padding: 9px 10px; border-bottom: 1px solid #f3f4f6; }
+  .vehicle-table tr:last-child td { border-bottom: none; }
+  .vehicle-table tr:hover td { background: #f9fafb; }
+  .vehicle-row-selected td { background: var(--accent-pale) !important; }
+  .vehicle-rank { width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 11px; }
+  .rank-1 { background: #fef3c7; color: #d97706; }
+  .rank-2 { background: #f3f4f6; color: #6b7280; }
+  .rank-3 { background: #fef3c7; color: #92400e; }
+  .star-rating { color: #f59e0b; font-size: 11px; }
+  .ai-score { font-family: 'Inter', sans-serif; font-weight: 700; }
+  .score-high { color: var(--green); }
+  .score-mid { color: var(--orange); }
+  .score-low { color: var(--red); }
+  .avail-badge { font-size: 10px; padding: 2px 6px; border-radius: 10px; font-weight: 600; }
+  .avail-ok { background: #dcfce7; color: #16a34a; }
+  .avail-busy { background: #fee2e2; color: #dc2626; }
+
+  /* 処理中フェーズ */
+  .processing-layout { display: flex; width: 100%; overflow: hidden; }
+  .case-list-panel-orange { border-left: 3px solid var(--orange); }
+  
+  /* 処理済みフェーズ */
+  .processed-layout { display: flex; width: 100%; overflow: hidden; }
+
+  /* ログタイムライン */
+  .timeline { display: flex; flex-direction: column; gap: 0; }
+  .timeline-item { display: flex; gap: 10px; padding: 6px 0; }
+  .timeline-time { font-size: 10px; font-family: 'Inter', sans-serif; color: var(--text-muted); width: 36px; flex-shrink: 0; padding-top: 2px; }
+  .timeline-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); margin-top: 4px; flex-shrink: 0; position: relative; }
+  .timeline-dot::after { content:''; position:absolute; top:8px; left:3px; width:1px; height:calc(100% + 8px); background:var(--border); }
+  .timeline-item:last-child .timeline-dot::after { display: none; }
+  .timeline-text { font-size: 12px; color: var(--text-primary); }
+  .timeline-by { font-size: 10px; color: var(--text-muted); }
+
+  /* 動態マップ */
+  .live-map {
+    width: 100%; height: 220px;
+    background: #e9eff5;
+    border-radius: 10px;
+    position: relative;
+    overflow: hidden;
+    border: 1px solid var(--border);
+  }
+  /* 道路グリッド背景 */
+  .live-map-roads {
+    position: absolute; inset: 0;
+    background-image:
+      linear-gradient(rgba(255,255,255,0.7) 2px, transparent 2px),
+      linear-gradient(90deg, rgba(255,255,255,0.7) 2px, transparent 2px),
+      linear-gradient(rgba(255,255,255,0.3) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,0.3) 1px, transparent 1px);
+    background-size: 60px 60px, 60px 60px, 20px 20px, 20px 20px;
+  }
+  /* ブロック（建物風） */
+  .live-map-blocks {
+    position: absolute; inset: 0;
+  }
+  .map-block {
+    position: absolute;
+    background: rgba(180,200,210,0.45);
+    border-radius: 2px;
+  }
+  /* ルートライン（走行済み） */
+  .live-route-done {
+    position: absolute;
+    background: var(--accent);
+    height: 3px;
+    border-radius: 2px;
+    transform-origin: left center;
+  }
+  /* ルートライン（残り） */
+  .live-route-remain {
+    position: absolute;
+    height: 3px;
+    border-radius: 2px;
+    border-top: 3px dashed #94a3b8;
+    background: transparent;
+    transform-origin: left center;
+  }
+  /* 出発地ピン */
+  .map-pin {
+    position: absolute;
+    display: flex; flex-direction: column; align-items: center;
+    transform: translate(-50%, -100%);
+  }
+  .map-pin-circle {
+    width: 22px; height: 22px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px; font-weight: 700; color: #fff;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.25);
+  }
+  .map-pin-label {
+    margin-top: 3px;
+    font-size: 9px; font-weight: 600;
+    background: rgba(0,0,0,0.65); color: #fff;
+    padding: 1px 5px; border-radius: 4px;
+    white-space: nowrap;
+  }
+  /* トラックアイコン（現在地） */
+  .map-truck {
+    position: absolute;
+    transform: translate(-50%, -50%);
+    z-index: 10;
+  }
+  .map-truck-icon {
+    width: 36px; height: 36px;
+    background: var(--sidebar-bg);
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 0 0 4px rgba(13,74,58,0.2), 0 3px 10px rgba(0,0,0,0.3);
+    animation: truckPulse 2s ease-in-out infinite;
+  }
+  @keyframes truckPulse {
+    0%,100% { box-shadow: 0 0 0 4px rgba(13,74,58,0.2), 0 3px 10px rgba(0,0,0,0.3); }
+    50% { box-shadow: 0 0 0 8px rgba(13,74,58,0.1), 0 3px 10px rgba(0,0,0,0.3); }
+  }
+  .map-truck-label {
+    margin-top: 4px;
+    font-size: 9px; font-weight: 700;
+    background: var(--sidebar-bg); color: #fff;
+    padding: 2px 6px; border-radius: 4px;
+    white-space: nowrap; text-align: center;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+  }
+  /* マップオーバーレイ情報 */
+  .map-info-overlay {
+    position: absolute; top: 10px; left: 10px;
+    background: rgba(255,255,255,0.95);
+    border-radius: 8px; padding: 8px 12px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+    font-size: 11px;
+  }
+  .map-info-live {
+    display: flex; align-items: center; gap: 5px;
+    font-weight: 700; color: var(--sidebar-bg);
+    margin-bottom: 4px;
+  }
+  .live-dot { width: 7px; height: 7px; border-radius: 50%; background: #22c55e; animation: pulse 1.5s infinite; }
+  .map-info-row { display: flex; gap: 12px; }
+  .map-info-item { display: flex; flex-direction: column; gap: 1px; }
+  .map-info-item-label { font-size: 9px; color: var(--text-muted); }
+  .map-info-item-val { font-size: 12px; font-weight: 600; font-family: 'Inter', sans-serif; color: var(--text-primary); }
+  /* GPS/デジタコバッジ */
+  .map-badge-row {
+    position: absolute; top: 10px; right: 10px;
+    display: flex; flex-direction: column; gap: 4px; align-items: flex-end;
+  }
+  .map-badge {
+    font-size: 9px; font-weight: 700; letter-spacing: 0.06em;
+    padding: 3px 7px; border-radius: 5px;
+    display: flex; align-items: center; gap: 4px;
+  }
+  .map-badge.gps { background: rgba(13,74,58,0.85); color: #6DD5A8; }
+  .map-badge.dtc { background: rgba(37,99,235,0.85); color: #bfdbfe; }
+
+  /* 進捗バー */
+  .route-progress-bar {
+    width: 100%; height: 6px;
+    background: #e5e7eb; border-radius: 4px; overflow: hidden; margin: 10px 0 4px;
+  }
+  .route-progress-fill {
+    height: 100%; border-radius: 4px;
+    background: linear-gradient(90deg, var(--accent), #22c55e);
+    transition: width 0.5s ease;
+  }
+  /* 動態ステータス行 */
+  .live-stats-row {
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 10px;
+  }
+  .live-stat {
+    background: #f8fafc; border-radius: 8px; padding: 8px 10px;
+    border: 1px solid var(--border);
+  }
+  .live-stat-label { font-size: 9px; color: var(--text-muted); margin-bottom: 2px; }
+  .live-stat-val { font-size: 13px; font-weight: 700; font-family: 'Inter', sans-serif; color: var(--text-primary); }
+  .live-stat-val.ok { color: var(--green); }
+  .live-stat-val.warn { color: var(--orange); }
+  /* イベントログ */
+  .event-log { margin-top: 10px; display: flex; flex-direction: column; gap: 0; }
+  .event-log-item {
+    display: flex; gap: 10px; align-items: flex-start;
+    padding: 6px 0; border-bottom: 1px solid #f3f4f6;
+  }
+  .event-log-item:last-child { border-bottom: none; }
+  .event-time { font-size: 10px; font-family: 'Inter', sans-serif; color: var(--text-muted); width: 42px; flex-shrink: 0; padding-top: 1px; }
+  .event-icon { width: 20px; height: 20px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 10px; flex-shrink: 0; }
+  .event-icon.start { background: #dcfce7; }
+  .event-icon.move  { background: #dbeafe; }
+  .event-icon.stop  { background: #fef9c3; }
+  .event-icon.arrive{ background: #d1fae5; }
+  .event-text { font-size: 12px; color: var(--text-primary); flex: 1; }
+  .event-sub  { font-size: 10px; color: var(--text-muted); }
+
+  /* 旧マップ互換（削除せず残す） */
+  .map-mock { display: none; }
+  .map-mock-grid,.map-route,.map-marker,.map-marker-dot { display: none; }
+
+  /* トースト */
+  .toast-container { position: fixed; bottom: 24px; right: 24px; z-index: 9999; display: flex; flex-direction: column; gap: 8px; }
+  .toast {
+    background: #1f2937; color: #fff; padding: 12px 18px; border-radius: 10px;
+    font-size: 13px; display: flex; align-items: center; gap: 10px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+    animation: slideIn 0.3s ease; max-width: 320px;
+  }
+  @keyframes slideIn { from{transform:translateY(20px);opacity:0} to{transform:translateY(0);opacity:1} }
+  .toast-success { border-left: 3px solid var(--accent); }
+  .toast-icon { font-size: 16px; }
+
+  /* モーダル */
+  .modal-overlay {
+    display: none; position: fixed; inset: 0;
+    background: rgba(0,0,0,0.45); z-index: 9000;
+    align-items: center; justify-content: center;
+  }
+  .modal-overlay.open { display: flex; }
+  .modal {
+    background: #fff; border-radius: 16px;
+    padding: 0; width: 480px; max-width: 95vw;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+    animation: modalIn 0.2s ease;
+    overflow: hidden;
+  }
+  @keyframes modalIn { from{transform:scale(.95);opacity:0} to{transform:scale(1);opacity:1} }
+  .modal-header {
+    padding: 18px 20px;
+    background: var(--sidebar-bg);
+    display: flex; align-items: center; gap: 10px;
+  }
+  .modal-title { font-size: 15px; font-weight: 700; color: #fff; }
+  .modal-close { margin-left: auto; background: transparent; border: none; color: rgba(255,255,255,0.6); cursor: pointer; font-size: 18px; }
+  .modal-body { padding: 20px; }
+  .modal-footer { padding: 14px 20px; background: #f9fafb; border-top: 1px solid var(--border); display: flex; gap: 8px; justify-content: flex-end; }
+
+  /* ダッシュボード下部 */
+  .dashboard-bar {
+    border-top: 1px solid var(--border);
+    background: var(--card-bg);
+    padding: 14px 24px;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 20px;
+    flex-shrink: 0;
+  }
+  .db-section { }
+  .db-title { font-size: 11px; font-weight: 600; color: var(--text-secondary); margin-bottom: 8px; display: flex; align-items: center; gap: 6px; }
+  .db-metrics { display: flex; gap: 14px; }
+  .db-metric { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+  .db-metric-val { font-family: 'Inter', sans-serif; font-size: 20px; font-weight: 700; color: var(--text-primary); }
+  .db-metric-val.alert { color: var(--red); }
+  .db-metric-val.warn { color: var(--orange); }
+  .db-metric-label { font-size: 10px; color: var(--text-muted); text-align: center; }
+  .db-metric-sub { font-size: 9px; color: var(--accent); font-family: 'Inter', sans-serif; }
+  .kpi-item { display: flex; flex-direction: column; gap: 2px; }
+  .kpi-label { font-size: 10px; color: var(--text-muted); }
+  .kpi-val { font-family: 'Inter', sans-serif; font-size: 14px; font-weight: 700; color: var(--text-primary); }
+  .kpi-target { font-size: 9px; color: var(--text-muted); }
+  .notif-item { display: flex; gap: 8px; align-items: flex-start; margin-bottom: 6px; }
+  .notif-icon { font-size: 12px; flex-shrink: 0; margin-top: 1px; }
+  .notif-text { font-size: 11px; color: var(--text-primary); flex: 1; }
+  .notif-time { font-size: 10px; color: var(--text-muted); white-space: nowrap; }
+
+  /* スクロール */
+  .detail-panel::-webkit-scrollbar { width: 5px; }
+  .detail-panel::-webkit-scrollbar-thumb { background: #e5e7eb; border-radius: 4px; }
+
+  /* 空フェーズ表示 */
+  .empty-state { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; color: var(--text-muted); }
+  .empty-state-icon { font-size: 40px; opacity: 0.3; }
+
+  /* 処理済みカード */
+  .processed-card { padding: 14px 16px; border-bottom: 1px solid var(--border); cursor: pointer; transition: background .1s; }
+  .processed-card:hover { background: #f9fafb; }
+  .processed-card.selected { background: #f0fdf4; border-left: 3px solid var(--green); }
+  .completed-badge { font-size: 10px; font-weight: 600; padding: 2px 8px; border-radius: 10px; background: #d1fae5; color: #065f46; }
+
+  /* 運行実績 */
+  .running-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px; }
+  .running-stat { background: #f9fafb; border-radius: 8px; padding: 8px; }
+  .running-stat-label { font-size: 10px; color: var(--text-muted); }
+  .running-stat-val { font-size: 14px; font-weight: 600; font-family: 'Inter', sans-serif; }
+
+  /* 請求カード */
+  .invoice-section { background: #f0fdf4; border-radius: 10px; border: 1px solid #bbf7d0; padding: 14px; }
+  .invoice-row { display: flex; justify-content: space-between; font-size: 12px; padding: 3px 0; }
+  .invoice-row.total { font-weight: 700; font-size: 13px; border-top: 1px solid #bbf7d0; margin-top: 6px; padding-top: 8px; }
+  .unpaid-badge { font-size: 11px; font-weight: 600; background: #fee2e2; color: #dc2626; padding: 3px 10px; border-radius: 8px; }
+  .paid-badge { font-size: 11px; font-weight: 600; background: #d1fae5; color: #065f46; padding: 3px 10px; border-radius: 8px; }
+
+  /* セパレーター */
+  .phase-arrow { display: flex; align-items: center; justify-content: center; padding: 0 12px; flex-shrink: 0; color: var(--text-muted); font-size: 20px; }
+
+
+  /* ━━ 処理中：車両選択カード ━━ */
+  .vcard-list { display:flex; flex-direction:column; gap:8px; padding:14px; }
+  .vcard {
+    display:flex; align-items:center; gap:12px;
+    border:2px solid var(--border); border-radius:10px;
+    padding:12px 14px; cursor:pointer; transition:all .18s;
+    background:#fff; position:relative;
+  }
+  .vcard:hover { border-color:var(--accent); background:var(--accent-pale); }
+  .vcard.vcard-top {
+    border-color:var(--sidebar-bg);
+    background:linear-gradient(135deg,#f0fdf9 0%,#e8f8f2 100%);
+    box-shadow:0 2px 10px rgba(13,74,58,.12);
+  }
+  .vcard.vcard-selected {
+    border-color:var(--sidebar-bg);
+    background:linear-gradient(135deg,#e8f8f2 0%,#d4f0e4 100%);
+    box-shadow:0 0 0 3px rgba(13,74,58,.15);
+  }
+  .vcard-rank {
+    width:28px; height:28px; border-radius:50%;
+    display:flex; align-items:center; justify-content:center;
+    font-size:12px; font-weight:800; flex-shrink:0;
+    font-family:'Inter',sans-serif;
+  }
+  .vcard-rank-1 { background:var(--sidebar-bg); color:#6DD5A8; }
+  .vcard-rank-2 { background:#f1f5f9; color:#64748b; }
+  .vcard-rank-3 { background:#f1f5f9; color:#94a3b8; }
+  .vcard-info { flex:1; min-width:0; }
+  .vcard-driver { font-size:14px; font-weight:700; color:var(--text-primary); }
+  .vcard-vehicle { font-size:11px; color:var(--text-muted); font-family:'Inter',sans-serif; margin-top:1px; }
+  .vcard-tags { display:flex; gap:5px; margin-top:5px; flex-wrap:wrap; }
+  .vcard-tag { font-size:10px; padding:2px 7px; border-radius:6px; font-weight:600; }
+  .vcard-tag-base  { background:#f1f5f9; color:#475569; }
+  .vcard-tag-cap   { background:#dbeafe; color:#1e40af; }
+  .vcard-tag-avail { background:#d1fae5; color:#065f46; }
+  .vcard-right { display:flex; flex-direction:column; align-items:flex-end; gap:4px; flex-shrink:0; }
+  .vcard-score { font-size:20px; font-weight:800; font-family:'Inter',sans-serif; color:var(--sidebar-bg); line-height:1; }
+  .vcard-score-label { font-size:9px; color:var(--text-muted); }
+  .vcard-stars { font-size:11px; color:#f59e0b; }
+  .vcard-check {
+    position:absolute; top:10px; right:10px;
+    width:20px; height:20px; border-radius:50%;
+    background:var(--sidebar-bg); border:none;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .vcard-recommend-badge {
+    position:absolute; top:-1px; left:12px;
+    font-size:9px; font-weight:700; padding:2px 8px;
+    background:var(--sidebar-bg); color:#6DD5A8;
+    border-radius:0 0 6px 6px; letter-spacing:.04em;
+  }
+
+
+  /* ━━ 法令適合チップ＆ツールチップ ━━ */
+  .law-chip-wrap { position:relative; display:inline-flex; }
+  .law-chip {
+    display:inline-flex; align-items:center; gap:4px;
+    font-size:10px; font-weight:700; padding:3px 8px; border-radius:6px;
+    cursor:pointer; user-select:none; white-space:nowrap;
+    border:1px solid transparent;
+  }
+  .law-chip.ok   { background:#d1fae5; color:#065f46; border-color:#a7f3d0; }
+  .law-chip.warn { background:#fef9c3; color:#92400e; border-color:#fde68a; }
+  .law-chip.ng   { background:#fee2e2; color:#991b1b; border-color:#fca5a5; }
+
+  /* 法令ツールチップ */
+  .law-tip {
+    display:none; position:absolute;
+    bottom:calc(100% + 8px); left:50%; transform:translateX(-50%);
+    background:#1f2937; border-radius:10px; padding:12px 14px;
+    width:320px; z-index:9999; pointer-events:none;
+    box-shadow:0 8px 24px rgba(0,0,0,.25);
+  }
+  .law-tip::after {
+    content:''; position:absolute; top:100%; left:50%; transform:translateX(-50%);
+    border:6px solid transparent; border-top-color:#1f2937;
+  }
+  .law-chip-wrap:hover .law-tip { display:block; }
+  .law-tip-title { font-size:11px; font-weight:700; color:#fff; margin-bottom:8px; display:flex; align-items:center; gap:5px; }
+  .law-tip-grid  { display:grid; grid-template-columns:1fr 1fr; gap:6px; }
+  .law-tip-item  { background:rgba(255,255,255,.07); border-radius:6px; padding:6px 8px; }
+  .law-tip-item.warn-item { background:rgba(253,230,138,.12); }
+  .law-tip-label { font-size:9px; color:#9ca3af; margin-bottom:2px; display:flex; align-items:center; gap:3px; }
+  .law-tip-val   { font-size:11px; font-weight:600; color:#f9fafb; }
+  /* ━━ 新規登録モーダル ━━ */
+  .reg-modal { width: 640px; max-width: 96vw; max-height: 92vh; display:flex; flex-direction:column; }
+  .reg-tabs { display:flex; border-bottom:1px solid var(--border); background:#fafafa; flex-shrink:0; }
+  .reg-tab {
+    padding:12px 20px; font-size:13px; font-weight:600; cursor:pointer;
+    border:none; background:transparent; color:var(--text-secondary);
+    border-bottom:3px solid transparent; transition:all .15s;
+    display:flex; align-items:center; gap:7px;
+  }
+  .reg-tab.active { color:var(--sidebar-bg); border-bottom-color:var(--sidebar-bg); background:#fff; }
+  .reg-tab:hover:not(.active) { background:#f3f4f6; }
+  .reg-body { flex:1; overflow-y:auto; padding:20px; }
+  .reg-body::-webkit-scrollbar { width:4px; }
+  .reg-body::-webkit-scrollbar-thumb { background:var(--border); border-radius:4px; }
+  .reg-panel { display:none; }
+  .reg-panel.active { display:block; }
+  .rec-area { border:2px dashed var(--border); border-radius:14px; padding:28px 20px; text-align:center; margin-bottom:16px; transition:border-color .2s; }
+  .rec-area.recording { border-color:var(--red); background:#fff5f5; }
+  .rec-btn { width:68px; height:68px; border-radius:50%; border:none; cursor:pointer; display:flex; align-items:center; justify-content:center; margin:0 auto 12px; transition:all .2s; box-shadow:0 4px 16px rgba(0,0,0,.12); }
+  .rec-btn.idle { background:var(--sidebar-bg); }
+  .rec-btn.recording { background:var(--red); animation:recPulse 1.2s ease-in-out infinite; }
+  .rec-btn.idle:hover { background:#0a3d2f; transform:scale(1.05); }
+  @keyframes recPulse { 0%,100%{box-shadow:0 0 0 0 rgba(220,38,38,.4)} 50%{box-shadow:0 0 0 14px rgba(220,38,38,0)} }
+  .rec-timer { font-family:'Inter',sans-serif; font-size:28px; font-weight:700; color:var(--text-primary); letter-spacing:.05em; }
+  .rec-timer.running { color:var(--red); }
+  .rec-waveform { display:flex; align-items:center; justify-content:center; gap:3px; height:36px; margin:10px 0; }
+  .rec-bar { width:4px; border-radius:3px; background:var(--accent); opacity:.5; }
+  .rec-bar.active { opacity:1; }
+  .transcript-box { background:#f8fafc; border:1px solid var(--border); border-radius:10px; padding:12px 14px; font-size:12px; line-height:1.8; color:var(--text-primary); min-height:80px; max-height:140px; overflow-y:auto; margin-bottom:12px; }
+  .ai-extract-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:12px; }
+  .ai-extract-item { background:#f0fdf4; border:1px solid #bbf7d0; border-radius:8px; padding:8px 10px; }
+  .ai-extract-label { font-size:9px; color:#065f46; font-weight:600; margin-bottom:2px; }
+  .ai-extract-val { font-size:12px; font-weight:600; color:var(--text-primary); }
+  .upload-drop { border:2px dashed var(--border); border-radius:14px; padding:32px 20px; text-align:center; cursor:pointer; transition:all .2s; background:#fafafa; }
+  .upload-drop:hover, .upload-drop.dragover { border-color:var(--accent); background:var(--accent-pale); }
+  .upload-drop-icon { font-size:36px; margin-bottom:8px; }
+  .upload-drop-text { font-size:13px; color:var(--text-secondary); }
+  .upload-drop-sub { font-size:11px; color:var(--text-muted); margin-top:4px; }
+  .upload-file-item { display:flex; align-items:center; gap:10px; background:#f8fafc; border:1px solid var(--border); border-radius:8px; padding:9px 12px; margin-top:10px; }
+  .upload-file-icon { font-size:20px; flex-shrink:0; }
+  .upload-file-name { font-size:12px; font-weight:600; flex:1; }
+  .upload-file-size { font-size:10px; color:var(--text-muted); }
+  .upload-progress { height:4px; background:var(--border); border-radius:2px; margin-top:6px; overflow:hidden; }
+  .upload-progress-fill { height:100%; background:var(--accent); border-radius:2px; transition:width .4s; }
+  .form-row { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:12px; }
+  .form-row.full { grid-template-columns:1fr; }
+  .form-group { display:flex; flex-direction:column; gap:4px; }
+  .form-label { font-size:11px; font-weight:600; color:var(--text-secondary); }
+  .form-label .req { color:var(--red); margin-left:2px; }
+  .form-input { padding:8px 11px; border:1.5px solid var(--border); border-radius:7px; font-size:13px; font-family:inherit; color:var(--text-primary); background:#fff; transition:border-color .15s; }
+  .form-input:focus { outline:none; border-color:var(--sidebar-bg); box-shadow:0 0 0 3px rgba(13,74,58,.08); }
+  .form-select { padding:8px 11px; border:1.5px solid var(--border); border-radius:7px; font-size:13px; font-family:inherit; color:var(--text-primary); background:#fff; cursor:pointer; }
+  .form-select:focus { outline:none; border-color:var(--sidebar-bg); }
+
+  /* ━━ 運賃適正判定カード ━━ */
+  .fare-card { background:var(--card-bg); border-radius:12px; border:1px solid var(--border); margin-bottom:16px; overflow:hidden; }
+  .fare-header { padding:12px 16px; border-bottom:1px solid var(--border); display:flex; align-items:center; gap:8px; background:#fafafa; }
+  .fare-title  { font-size:13px; font-weight:600; }
+  .fare-body   { padding:16px; }
+
+  /* 推奨価格ヒーロー */
+  .fare-hero { display:flex; align-items:flex-end; gap:6px; margin-bottom:4px; }
+  .fare-price { font-family:'Inter',sans-serif; font-size:40px; font-weight:800; color:var(--sidebar-bg); line-height:1; }
+  .fare-unit  { font-size:13px; color:var(--text-secondary); padding-bottom:6px; }
+  .fare-range { font-size:11px; color:var(--text-muted); }
+
+  /* ステータスバッジ */
+  .fare-status { display:inline-flex; align-items:center; gap:5px; padding:4px 12px; border-radius:20px; font-size:11px; font-weight:700; margin-bottom:14px; }
+  .fare-status.ok   { background:#d1fae5; color:#065f46; }
+  .fare-status.warn { background:#fef9c3; color:#92400e; }
+  .fare-status.ng   { background:#fee2e2; color:#991b1b; }
+
+  /* コスト内訳バー */
+  .fare-breakdown { margin-bottom:14px; }
+  .fare-breakdown-title { font-size:11px; font-weight:600; color:var(--text-secondary); margin-bottom:8px; }
+  .fare-bar-row { display:flex; align-items:center; gap:8px; margin-bottom:6px; }
+  .fare-bar-label { font-size:11px; color:var(--text-secondary); width:120px; flex-shrink:0; }
+  .fare-bar-wrap  { flex:1; height:8px; background:#f3f4f6; border-radius:4px; overflow:hidden; }
+  .fare-bar-fill  { height:100%; border-radius:4px; }
+  .fare-bar-val   { font-size:11px; font-family:'Inter',sans-serif; font-weight:600; color:var(--text-primary); width:60px; text-align:right; flex-shrink:0; }
+
+  /* 相場比較 */
+  .fare-market { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-bottom:14px; }
+  .fare-market-item { background:#f8fafc; border:1px solid var(--border); border-radius:8px; padding:8px 10px; text-align:center; }
+  .fare-market-label { font-size:9px; color:var(--text-muted); margin-bottom:3px; }
+  .fare-market-val   { font-size:14px; font-weight:700; font-family:'Inter',sans-serif; }
+  .fare-market-val.low  { color:var(--text-secondary); }
+  .fare-market-val.mid  { color:var(--sidebar-bg); }
+  .fare-market-val.high { color:var(--red); }
+
+  /* 提案パターン */
+  .fare-proposals { display:flex; flex-direction:column; gap:6px; }
+  .fare-proposal  { display:flex; align-items:center; gap:10px; padding:9px 12px; border-radius:8px; border:1px solid var(--border); cursor:pointer; transition:all .15s; }
+  .fare-proposal:hover { border-color:var(--accent); background:var(--accent-pale); }
+  .fare-proposal.selected { border-color:var(--sidebar-bg); background:var(--accent-pale); }
+  .fare-proposal-tag  { font-size:9px; font-weight:700; padding:2px 8px; border-radius:10px; white-space:nowrap; }
+  .tag-recommend { background:var(--sidebar-bg); color:#fff; }
+  .tag-alt       { background:#e0f2fe; color:#0369a1; }
+  .tag-min       { background:#f3f4f6; color:#6b7280; }
+  .fare-proposal-detail { flex:1; font-size:12px; color:var(--text-secondary); }
+  .fare-proposal-price  { font-size:15px; font-weight:800; font-family:'Inter',sans-serif; color:var(--sidebar-bg); }
+
+  /* ローディング */
+  .fare-loading { text-align:center; padding:28px; color:var(--text-muted); font-size:13px; }
+  .fare-loading-spinner { width:32px; height:32px; border:3px solid var(--border); border-top-color:var(--accent); border-radius:50%; animation:spin .8s linear infinite; margin:0 auto 10px; }
+  @keyframes spin { to{transform:rotate(360deg)} }
+
+
+  /* ━━ 配車計画ページ ━━ */
+  .dispatch-header {
+    background: var(--card-bg); border-bottom: 1px solid var(--border);
+    padding: 0 24px; display:flex; align-items:stretch; min-height:56px; flex-shrink:0;
+  }
+  .dispatch-header-left { display:flex; align-items:center; gap:10px; padding-right:16px; flex-shrink:0; }
+  .dispatch-tabs { display:flex; margin-left:auto; align-items:stretch; border-left:1px solid var(--border); }
+  .dispatch-tab {
+    padding:0 24px; font-size:13px; font-weight:600; cursor:pointer;
+    border:none; background:transparent; color:var(--text-secondary);
+    border-bottom:3px solid transparent; border-top:3px solid transparent;
+    border-right:1px solid var(--border);
+    display:flex; align-items:center; gap:7px; white-space:nowrap; transition:all .15s;
+  }
+  .dispatch-tab:hover:not(.active) { background:#f9fafb; color:var(--text-primary); }
+  .dispatch-tab.active { color:#1a7a5e; background:#eaf6f1; border-bottom-color:#1a7a5e; }
+
+  /* サブタブ（運行スケジュール / 動態管理） */
+  .dispatch-subtabs { display:flex; gap:0; padding:0 24px; background:var(--card-bg); border-bottom:1px solid var(--border); flex-shrink:0; }
+  .dispatch-subtab {
+    padding:10px 18px; font-size:12px; font-weight:600; cursor:pointer;
+    border:none; background:transparent; color:var(--text-muted);
+    border-bottom:2px solid transparent; transition:all .15s;
+    display:flex; align-items:center; gap:6px;
+  }
+  .dispatch-subtab:hover:not(.active) { color:var(--text-primary); }
+  .dispatch-subtab.active { color:#1a7a5e; border-bottom-color:#1a7a5e; }
+
+  /* 運行スケジュール */
+  .schedule-wrap { flex:1; overflow-y:auto; padding:20px 24px; }
+  .schedule-wrap::-webkit-scrollbar { width:5px; }
+  .schedule-wrap::-webkit-scrollbar-thumb { background:var(--border); border-radius:4px; }
+
+  .schedule-header-row {
+    display:grid; grid-template-columns:140px repeat(24,1fr);
+    gap:0; margin-bottom:4px;
+  }
+  .schedule-time-label {
+    text-align:center; font-size:9px; font-weight:600; color:var(--text-muted);
+    padding:3px 0; font-family:'Inter',sans-serif;
+  }
+
+  .schedule-row {
+    display:grid; grid-template-columns:140px 1fr;
+    gap:0; margin-bottom:6px; position:relative;
+  }
+  .schedule-driver-cell {
+    display:flex; flex-direction:column; justify-content:center;
+    padding:6px 10px; background:var(--card-bg); border:1px solid var(--border);
+    border-radius:8px 0 0 8px; flex-shrink:0;
+  }
+  .schedule-driver-name { font-size:12px; font-weight:700; color:var(--text-primary); }
+  .schedule-driver-vehicle { font-size:10px; color:var(--text-muted); font-family:'Inter',sans-serif; }
+  .schedule-driver-status { font-size:9px; font-weight:600; margin-top:2px; }
+  .schedule-driver-status.running { color:var(--green); }
+  .schedule-driver-status.waiting { color:var(--text-muted); }
+
+  .schedule-bar-wrap {
+    position:relative; height:52px;
+    background:repeating-linear-gradient(
+      90deg, transparent, transparent calc(100%/24 - 1px),
+      #f0f0f0 calc(100%/24 - 1px), #f0f0f0 calc(100%/24)
+    );
+    background-color:#f9fafb;
+    border:1px solid var(--border); border-left:none; border-radius:0 8px 8px 0;
+  }
+  /* 現在時刻ライン */
+  .schedule-now-line {
+    position:absolute; top:0; bottom:0; width:2px;
+    background:var(--red); opacity:0.7; z-index:5;
+  }
+  .schedule-now-label {
+    position:absolute; top:-16px; font-size:9px; font-weight:700;
+    color:var(--red); transform:translateX(-50%); font-family:'Inter',sans-serif;
+    white-space:nowrap;
+  }
+  .schedule-block {
+    position:absolute; top:6px; bottom:6px;
+    border-radius:6px; display:flex; align-items:center; padding:0 8px;
+    overflow:hidden; cursor:pointer; transition:filter .15s;
+    z-index:2;
+  }
+  .schedule-block:hover { filter:brightness(.9); }
+  .schedule-block-label {
+    font-size:10px; font-weight:700; color:#fff; white-space:nowrap;
+    overflow:hidden; text-overflow:ellipsis;
+  }
+  /* ホバーツールチップ */
+  .sched-tip {
+    display:none; position:absolute; bottom:calc(100% + 8px); left:50%;
+    transform:translateX(-50%); background:#1f2937; color:#f9fafb;
+    border-radius:10px; padding:10px 14px; width:240px; font-size:11px;
+    z-index:999; pointer-events:none; box-shadow:0 6px 20px rgba(0,0,0,.25);
+    line-height:1.6;
+  }
+  .sched-tip::after {
+    content:''; position:absolute; top:100%; left:50%; transform:translateX(-50%);
+    border:6px solid transparent; border-top-color:#1f2937;
+  }
+  .schedule-block:hover .sched-tip { display:block; }
+
+  /* 動態管理マップ */
+  .dotai-wrap { flex:1; overflow-y:auto; padding:20px 24px; display:flex; flex-direction:column; gap:16px; }
+  .dotai-wrap::-webkit-scrollbar { width:5px; }
+  .dotai-wrap::-webkit-scrollbar-thumb { background:var(--border); border-radius:4px; }
+
+  .dotai-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:16px; }
+  @media(max-width:1100px){ .dotai-grid { grid-template-columns:repeat(2,1fr); } }
+
+  .dotai-card { background:var(--card-bg); border:1px solid var(--border); border-radius:12px; overflow:hidden; }
+  .dotai-card-header {
+    padding:10px 14px; border-bottom:1px solid var(--border);
+    display:flex; align-items:center; gap:8px; background:#fafafa;
+  }
+  .dotai-card-title { font-size:12px; font-weight:700; }
+  .dotai-live-dot { width:7px; height:7px; border-radius:50%; background:#22c55e; animation:pulse 1.5s infinite; flex-shrink:0; }
+  .dotai-mini-map {
+    width:100%; height:130px;
+    background:linear-gradient(135deg,#e9eff5 0%,#dce8f0 100%);
+    position:relative; overflow:hidden;
+  }
+  .dotai-mini-grid {
+    position:absolute; inset:0;
+    background-image:
+      linear-gradient(rgba(255,255,255,.7) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,.7) 1px, transparent 1px),
+      linear-gradient(rgba(255,255,255,.3) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,.3) 1px, transparent 1px);
+    background-size:50px 50px,50px 50px,16px 16px,16px 16px;
+  }
+  .dotai-card-body { padding:10px 14px; }
+  .dotai-stat-row { display:grid; grid-template-columns:repeat(3,1fr); gap:6px; margin-top:6px; }
+  .dotai-stat { background:#f8fafc; border-radius:6px; padding:5px 8px; }
+  .dotai-stat-label { font-size:9px; color:var(--text-muted); }
+  .dotai-stat-val { font-size:12px; font-weight:700; font-family:'Inter',sans-serif; }
+
+  /* ツールチップ */
+  .tooltip-wrap { position: relative; display: inline-flex; }
+  .tooltip-wrap .tooltip-box {
+    display: none;
+    position: absolute;
+    top: calc(100% + 10px);
+    left: 50%;
+    transform: translateX(-50%);
+    background: #1f2937;
+    color: #f9fafb;
+    font-size: 11px;
+    font-weight: 400;
+    line-height: 1.6;
+    padding: 9px 13px;
+    border-radius: 8px;
+    white-space: nowrap;
+    max-width: 280px;
+    white-space: normal;
+    width: 260px;
+    box-shadow: 0 6px 20px rgba(0,0,0,0.2);
+    z-index: 9999;
+    pointer-events: none;
+    text-align: left;
+  }
+  .tooltip-wrap .tooltip-box::before {
+    content: '';
+    position: absolute;
+    top: -6px; left: 50%;
+    transform: translateX(-50%);
+    border: 6px solid transparent;
+    border-top: none;
+    border-bottom-color: #1f2937;
+  }
+  .tooltip-wrap:hover .tooltip-box { display: block; }
+</style>
+</head>
+<body>
+
+<!-- グローバルヘッダー -->
+<div class="global-header">
+  <div class="logo-wrap">
+    <div class="logo-icon">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#0D4A3A" stroke-width="2" stroke-linecap="round">
+        <rect x="1" y="3" width="15" height="13" rx="2"/>
+        <path d="M16 8h4l3 4v3h-7V8z"/>
+        <circle cx="5.5" cy="18.5" r="2.5"/>
+        <circle cx="18.5" cy="18.5" r="2.5"/>
+      </svg>
+    </div>
+    <div>
+      <span class="brand-name"><span style="color:#ffffff;font-weight:700">ロジポケ</span><span style="color:#6DD5A8;font-weight:400"> Agent</span></span>
+    </div>
+  </div>
+  <div class="header-divider"></div>
+  <span class="header-tenant">東日本物流株式会社</span>
+  <div class="header-spacer"></div>
+  <div class="header-right">
+    <div class="header-badge">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+      </svg>
+      <div class="header-badge-count">3</div>
+    </div>
+    <div class="header-user">
+      <div class="header-avatar">配太</div>
+      <div class="header-user-info">
+        <div class="header-user-name">配車 太郎</div>
+        <div class="header-user-dept">営業本部</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ステータスバー -->
+<div class="status-bar">
+  <div class="status-item">
+    <div class="status-dot"></div>
+    <span>Agent 稼働中</span>
+  </div>
+  <div class="status-item">本日対応: <span class="status-val">18件</span></div>
+  <div class="status-item">AI完結率: <span class="status-val">87%</span></div>
+  <div class="status-item">電話応答: <span class="status-val">平均 1.2秒</span></div>
+  <div class="status-item">未割当: <span class="status-val" style="color:#fca5a5">3件</span></div>
+</div>
+
+<!-- メインボディ -->
+<div class="app-body">
+
+  <!-- サイドバー -->
+  <div class="sidebar">
+    <div class="sidebar-section-label">メイン</div>
+    <div class="nav-item" onclick="showPage('dashboard')">
+      <div class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg></div>
+      <span class="nav-label">ダッシュボード</span>
+    </div>
+    <div class="nav-item active" onclick="showPage('cases')">
+      <div class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><line x1="9" y1="12" x2="15" y2="12"/><line x1="9" y1="16" x2="12" y2="16"/></svg></div>
+      <span class="nav-label">案件一覧</span>
+      <span class="nav-badge">12</span>
+    </div>
+    <div class="nav-item" onclick="showPage('dispatch')">
+      <div class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="3"/><path d="M12 2v4M12 18v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M2 12h4M18 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/></svg></div>
+      <span class="nav-label">配車計画</span>
+    </div>
+    <div class="sidebar-section-label" style="margin-top:8px">受付</div>
+    <div class="nav-item" onclick="showPage('phone')">
+      <div class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12 19.79 19.79 0 0 1 1.65 3.35 2 2 0 0 1 3.62 1h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 8.6a16 16 0 0 0 5.5 5.5l.96-.96a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg></div>
+      <span class="nav-label">AI電話受付</span>
+      <span class="agent-tag">AI</span>
+    </div>
+    <div class="nav-item" onclick="showPage('fax')">
+      <div class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></div>
+      <span class="nav-label">メール・FAX受付</span>
+      <span class="agent-tag">AI</span>
+    </div>
+    <div class="sidebar-section-label" style="margin-top:8px">管理</div>
+    <div class="nav-item" onclick="showPage('vehicle')">
+      <div class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="1" y="3" width="15" height="13" rx="2"/><path d="M16 8h4l3 4v3h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg></div>
+      <span class="nav-label">車両・ドライバー</span>
+    </div>
+    <div class="nav-item" onclick="showPage('invoice')">
+      <div class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><line x1="10" y1="9" x2="8" y2="9"/></svg></div>
+      <span class="nav-label">請求管理</span>
+    </div>
+    <div class="nav-item" onclick="showPage('customer')">
+      <div class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></div>
+      <span class="nav-label">顧客管理</span>
+    </div>
+    <div class="nav-item" onclick="showPage('report')">
+      <div class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg></div>
+      <span class="nav-label">レポート</span>
+    </div>
+    <div class="sidebar-section-label" style="margin-top:8px">設定</div>
+    <div class="nav-item" onclick="showPage('settings')">
+      <div class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></div>
+      <span class="nav-label">設定</span>
+    </div>
+  </div>
+
+  <!-- メインコンテンツ -->
+  <div class="main-content">
+
+    <!-- 案件一覧ページ -->
+    <div class="page active" id="page-cases">
+      <div class="page-header">
+        <!-- 左ゾーン：タイトル＋新規登録 -->
+        <div class="page-header-left">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#0D4A3A" stroke-width="2"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/></svg>
+          <div class="page-title">案件一覧</div>
+          <button id="btn-new-register" class="btn btn-accent btn-sm" style="margin-left:8px;background:#1a7a5e;" onmouseover="this.style.background='#155f49'" onmouseout="this.style.background='#1a7a5e'" onclick="openRegisterModal()">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            新規登録
+          </button>
+        </div>
+
+        <!-- 右ゾーン：フェーズタブ（ヘッダー全高） -->
+        <div class="phase-tabs">
+          <div class="tooltip-wrap">
+            <button class="phase-tab unprocessed active" onclick="switchPhase('unprocessed')">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12 19.79 19.79 0 0 1 1.65 3.35 2 2 0 0 1 3.62 1h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 8.6a16 16 0 0 0 5.5 5.5l.96-.96a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+              未処理 <span class="tab-count">12</span>
+            </button>
+            <div class="tooltip-box">受付した案件の内容のデータ化を完了します。</div>
+          </div>
+          <div class="tooltip-wrap">
+            <button class="phase-tab processing" onclick="switchPhase('processing')">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="1" y="3" width="15" height="13" rx="2"/><path d="M16 8h4l3 4v3h-7V8z"/><circle cx="5.5" cy="18.5" r="2"/><circle cx="18.5" cy="18.5" r="2"/></svg>
+              処理中 <span class="tab-count">8</span>
+            </button>
+            <div class="tooltip-box">データ化した案件の配車のマッチングを完了します。仮押さえや傭車依頼もこの段階で行うことができます。</div>
+          </div>
+          <div class="tooltip-wrap">
+            <button class="phase-tab processed" onclick="switchPhase('processed')">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+              処理済み <span class="tab-count">23</span>
+            </button>
+            <div class="tooltip-box">請求書作成を完了します。また、それぞれの配車案件の稼働状況（運行実績）をリアルタイムで確認できます。</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 未処理フェーズ -->
+      <div class="phase-content active" id="phase-unprocessed">
+        <div class="unprocessed-layout">
+          <!-- 案件リスト -->
+          <div class="case-list-panel">
+            <div class="panel-toolbar">
+              <select class="toolbar-select"><option>受付日時：今日</option><option>受付日時：昨日</option><option>すべて</option></select>
+              <select class="toolbar-select"><option>取引先：すべて</option></select>
+              <select class="toolbar-select"><option>ステータス：未解析・確認中</option></select>
+            </div>
+            <div class="panel-cases" id="unprocessed-list">
+              <!-- cards injected by JS -->
+            </div>
+          </div>
+          <!-- 詳細 -->
+          <div class="detail-panel" id="unprocessed-detail">
+            <!-- injected by JS -->
+          </div>
+        </div>
+      </div>
+
+      <!-- 処理中フェーズ -->
+      <div class="phase-content" id="phase-processing">
+        <div class="processing-layout">
+          <div class="case-list-panel">
+            <div class="panel-toolbar">
+              <select class="toolbar-select"><option>納期：すべて</option></select>
+              <select class="toolbar-select"><option>車格：すべて</option></select>
+              <select class="toolbar-select"><option>優先度：すべて</option></select>
+            </div>
+            <div class="panel-cases" id="processing-list"></div>
+          </div>
+          <div class="detail-panel" id="processing-detail"></div>
+        </div>
+      </div>
+
+      <!-- 処理済みフェーズ -->
+      <div class="phase-content" id="phase-processed">
+        <div class="processed-layout">
+          <div class="case-list-panel">
+            <div class="panel-toolbar">
+              <select class="toolbar-select"><option>請求月：2024年5月</option></select>
+              <select class="toolbar-select"><option>請求ステータス：すべて</option></select>
+              <select class="toolbar-select"><option>取引先：すべて</option></select>
+            </div>
+            <div class="panel-cases" id="processed-list"></div>
+          </div>
+          <div class="detail-panel" id="processed-detail"></div>
+        </div>
+      </div>
+    </div><!-- /page-cases -->
+
+    <!-- その他ページ（プレースホルダ） -->
+    <div class="page" id="page-dashboard">
+      <div class="page-header"><div class="page-title">ダッシュボード</div></div>
+      <div style="flex:1;display:flex;align-items:center;justify-content:center;color:var(--text-muted)">
+        <div style="text-align:center"><div style="font-size:40px;margin-bottom:12px">📊</div><div>ダッシュボード画面</div></div>
+      </div>
+    </div>
+    <div class="page" id="page-dispatch">
+
+      <!-- ページヘッダー：計画中 / 確定済み タブ -->
+      <div class="dispatch-header">
+        <div class="dispatch-header-left">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#1a7a5e" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 2v4M12 18v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M2 12h4M18 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/></svg>
+          <div style="font-size:16px;font-weight:700;color:var(--text-primary)">配車計画</div>
+        </div>
+        <div class="dispatch-tabs">
+          <div class="tooltip-wrap" style="align-items:stretch">
+            <button class="dispatch-tab active" id="dtab-planning" onclick="switchDispatchTab('planning')">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="1" y="3" width="15" height="13" rx="2"/><path d="M16 8h4l3 4v3h-7V8z"/></svg>
+              計画中
+              <span style="font-size:10px;font-weight:800;font-family:'Inter',sans-serif;padding:2px 8px;border-radius:20px;background:var(--red);color:#fff">3</span>
+            </button>
+            <div class="tooltip-box">処理中にある車両一覧を含む、確定されていない全ての車両の計画</div>
+          </div>
+          <div class="tooltip-wrap" style="align-items:stretch">
+            <button class="dispatch-tab" id="dtab-confirmed" onclick="switchDispatchTab('confirmed')">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+              確定済み
+              <span style="font-size:10px;font-weight:800;font-family:'Inter',sans-serif;padding:2px 8px;border-radius:20px;background:#e5e7eb;color:var(--text-secondary)">3</span>
+            </button>
+            <div class="tooltip-box">処理済みにある車両一覧の計画</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- サブタブ：運行スケジュール / 動態管理 -->
+      <div class="dispatch-subtabs">
+        <button class="dispatch-subtab active" id="dsubtab-schedule" onclick="switchDispatchSubtab('schedule')">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+          運行スケジュール
+        </button>
+        <button class="dispatch-subtab" id="dsubtab-dotai" onclick="switchDispatchSubtab('dotai')">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 2v4M12 18v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M2 12h4M18 12h4"/></svg>
+          動態管理
+        </button>
+      </div>
+
+      <!-- コンテンツ -->
+      <div id="dispatch-schedule" style="display:flex;flex-direction:column;flex:1;overflow:hidden">
+        <div class="schedule-wrap" id="schedule-wrap-inner"></div>
+      </div>
+      <div id="dispatch-dotai" style="display:none;flex:1;overflow:hidden">
+        <div class="dotai-wrap" id="dotai-wrap-inner"></div>
+      </div>
+
+    </div>
+    <div class="page" id="page-phone"><div class="page-header"><div class="page-title">AI電話受付</div></div><div class="empty-state"><div class="empty-state-icon">📞</div><div>AI電話受付画面</div></div></div>
+    <div class="page" id="page-fax"><div class="page-header"><div class="page-title">メール・FAX受付</div></div><div class="empty-state"><div class="empty-state-icon">📠</div><div>メール・FAX受付画面</div></div></div>
+    <div class="page" id="page-vehicle"><div class="page-header"><div class="page-title">車両・ドライバー</div></div><div class="empty-state"><div class="empty-state-icon">🚛</div><div>車両・ドライバー管理画面</div></div></div>
+    <div class="page" id="page-invoice"><div class="page-header"><div class="page-title">請求管理</div></div><div class="empty-state"><div class="empty-state-icon">📄</div><div>請求管理画面</div></div></div>
+    <div class="page" id="page-customer"><div class="page-header"><div class="page-title">顧客管理</div></div><div class="empty-state"><div class="empty-state-icon">👥</div><div>顧客管理画面</div></div></div>
+    <div class="page" id="page-report"><div class="page-header"><div class="page-title">レポート</div></div><div class="empty-state"><div class="empty-state-icon">📈</div><div>レポート画面</div></div></div>
+    <div class="page" id="page-settings"><div class="page-header"><div class="page-title">設定</div></div><div class="empty-state"><div class="empty-state-icon">⚙️</div><div>設定画面</div></div></div>
+
+  </div><!-- /main-content -->
+</div><!-- /app-body -->
+
+<!-- マッチング確認モーダル -->
+<div class="modal-overlay" id="matching-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="3" width="15" height="13" rx="2"/><path d="M16 8h4l3 4v3h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
+      <span class="modal-title">配車マッチングへ進む</span>
+      <button class="modal-close" onclick="closeModal('matching-modal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:14px;margin-bottom:14px">
+        <div style="font-size:12px;color:#065f46;font-weight:600;margin-bottom:6px">✓ AI解析が完了しています</div>
+        <div id="modal-case-summary" style="font-size:12px;color:#374151"></div>
+      </div>
+      <div style="font-size:13px;color:var(--text-secondary);line-height:1.6">
+        この案件を「処理中：配車マッチング」フェーズへ移行します。<br>
+        車両・ドライバーの割当画面に進みますか？
+      </div>
+      <label style="margin-top:12px;display:flex;align-items:center;gap:8px;cursor:pointer;user-select:none">
+        <span style="position:relative;width:16px;height:16px;flex-shrink:0;display:inline-flex;align-items:center;justify-content:center">
+          <input type="checkbox" id="logipoke-sync-check" checked
+            style="appearance:none;-webkit-appearance:none;width:16px;height:16px;border:2px solid var(--sidebar-bg);border-radius:4px;background:var(--sidebar-bg);cursor:pointer;flex-shrink:0;transition:background .15s;"
+            onchange="
+              this.style.background = this.checked ? 'var(--sidebar-bg)' : '#fff';
+              const tick = document.getElementById('ck-tick-main');
+              if(tick) tick.style.opacity = this.checked ? '1' : '0';
+            "
+          >
+          <svg id="ck-tick-main" width="10" height="10" viewBox="0 0 12 12" fill="none"
+            style="position:absolute;pointer-events:none;opacity:1;transition:opacity .15s">
+            <polyline points="1.5,6 4.5,9.5 10.5,2.5" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </span>
+        <span style="font-size:12px;color:var(--sidebar-bg);font-weight:500">※マッチングへ進むとロジポケにデータが連携されます。</span>
+      </label>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('matching-modal')">キャンセル</button>
+      <button class="btn btn-primary" onclick="confirmMatching()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="1" y="3" width="15" height="13" rx="2"/><path d="M16 8h4l3 4v3h-7V8z"/></svg>
+        マッチングへ進む
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- 配車確定モーダル -->
+<div class="modal-overlay" id="confirm-modal">
+  <div class="modal">
+    <div class="modal-header" style="background:var(--sidebar-bg)">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+      <span class="modal-title">配車を確定・ドライバーへ指示</span>
+      <button class="modal-close" onclick="closeModal('confirm-modal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:14px;margin-bottom:14px">
+        <div style="font-size:12px;color:var(--sidebar-bg);font-weight:600;margin-bottom:6px">⚠ この操作は取り消せません</div>
+        <div id="confirm-case-summary" style="font-size:12px;color:#374151"></div>
+      </div>
+      <!-- 法令要確認の警告（JS で表示制御） -->
+      <div id="confirm-law-warning" style="display:none;background:#fffbeb;border:1.5px solid #f59e0b;border-radius:10px;padding:12px 14px;margin-bottom:14px">
+        <div style="display:flex;align-items:center;gap:7px;font-size:12px;font-weight:700;color:#92400e;margin-bottom:8px">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#d97706" stroke-width="2.5"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+          法令要確認の項目があります。内容を確認してから確定してください。
+        </div>
+        <div id="confirm-law-items" style="display:flex;flex-direction:column;gap:5px"></div>
+      </div>
+
+      <div style="font-size:13px;color:var(--text-secondary);line-height:1.6">
+        選択したドライバーへ指示メッセージを送信し、<br>
+        案件を「処理済み：請求」フェーズへ移行します。
+      </div>
+      <div style="margin-top:12px;display:flex;align-items:flex-start;gap:8px;font-size:12px;color:var(--sidebar-bg);font-weight:500">
+        <span style="display:flex;align-items:center;gap:5px;flex-wrap:wrap">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink:0;margin-top:1px"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12 19.79 19.79 0 0 1 1.65 3.35 2 2 0 0 1 3.62 1h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 8.6a16 16 0 0 0 5.5 5.5l.96-.96a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+          ※指示は、ドライバーのロジポケアプリと SMS、メールに通知します。
+        </span>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('confirm-modal')">キャンセル</button>
+      <button class="btn btn-orange" onclick="confirmDispatch()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+        確定・指示送信
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- 新規登録モーダル -->
+<div class="modal-overlay" id="register-modal">
+  <div class="modal reg-modal">
+    <div class="modal-header">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      <span class="modal-title">新規案件登録</span>
+      <button class="modal-close" onclick="closeModal('register-modal')">✕</button>
+    </div>
+
+    <!-- タブ -->
+    <div class="reg-tabs">
+      <button class="reg-tab active" onclick="switchRegTab('rec')" id="regtab-rec">
+        <span>🎙️</span> 録音する
+      </button>
+      <button class="reg-tab" onclick="switchRegTab('upload')" id="regtab-upload">
+        <span>📂</span> 音声をアップロード
+      </button>
+      <button class="reg-tab" onclick="switchRegTab('manual')" id="regtab-manual">
+        <span>✏️</span> 自分で入力
+      </button>
+    </div>
+
+    <div class="reg-body">
+
+      <!-- ── 録音パネル ── -->
+      <div class="reg-panel active" id="regpanel-rec">
+        <div class="rec-area" id="rec-area">
+          <button class="rec-btn idle" id="rec-btn" onclick="toggleRecording()">
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+          </button>
+          <div class="rec-timer" id="rec-timer">00:00</div>
+          <div class="rec-waveform" id="rec-waveform">
+            <div class="rec-bar" style="height:8px"></div><div class="rec-bar" style="height:12px"></div>
+            <div class="rec-bar" style="height:16px"></div><div class="rec-bar" style="height:10px"></div>
+            <div class="rec-bar" style="height:20px"></div><div class="rec-bar" style="height:14px"></div>
+            <div class="rec-bar" style="height:8px"></div><div class="rec-bar" style="height:18px"></div>
+            <div class="rec-bar" style="height:12px"></div><div class="rec-bar" style="height:22px"></div>
+            <div class="rec-bar" style="height:10px"></div><div class="rec-bar" style="height:16px"></div>
+          </div>
+          <div id="rec-status" style="font-size:12px;color:var(--text-secondary);margin-top:4px">マイクボタンを押して録音を開始してください</div>
+        </div>
+
+        <!-- 録音後：文字起こし・AI解析 -->
+        <div id="rec-result" style="display:none">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+            <span style="font-size:12px;font-weight:600;color:var(--text-secondary)">📝 文字起こし結果</span>
+            <span id="rec-confidence-badge" style="font-size:10px;padding:2px 8px;border-radius:10px;background:#d1fae5;color:#065f46;font-weight:600"></span>
+          </div>
+          <div class="transcript-box" id="rec-transcript"></div>
+
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/></svg>
+            <span style="font-size:12px;font-weight:600;color:var(--text-secondary)">AI抽出結果</span>
+          </div>
+          <div class="ai-extract-grid" id="rec-ai-grid"></div>
+        </div>
+      </div>
+
+      <!-- ── アップロードパネル ── -->
+      <div class="reg-panel" id="regpanel-upload">
+        <div class="upload-drop" id="upload-drop"
+          onclick="document.getElementById('upload-input').click()"
+          ondragover="event.preventDefault();this.classList.add('dragover')"
+          ondragleave="this.classList.remove('dragover')"
+          ondrop="handleFileDrop(event)">
+          <div class="upload-drop-icon">🎵</div>
+          <div class="upload-drop-text">音声ファイルをドラッグ＆ドロップ</div>
+          <div class="upload-drop-sub">または クリックしてファイルを選択</div>
+          <div class="upload-drop-sub" style="margin-top:6px">対応形式：MP3 / WAV / M4A / OGG（最大 100MB）</div>
+        </div>
+        <input type="file" id="upload-input" accept="audio/*" style="display:none" onchange="handleFileSelect(event)">
+
+        <div id="upload-file-preview" style="display:none">
+          <div class="upload-file-item">
+            <div class="upload-file-icon">🎵</div>
+            <div style="flex:1">
+              <div class="upload-file-name" id="upload-filename">—</div>
+              <div class="upload-file-size" id="upload-filesize">—</div>
+              <div class="upload-progress"><div class="upload-progress-fill" id="upload-bar" style="width:0%"></div></div>
+            </div>
+            <button onclick="resetUpload()" style="background:none;border:none;cursor:pointer;color:var(--text-muted);font-size:16px">✕</button>
+          </div>
+          <div id="upload-status" style="font-size:12px;color:var(--text-secondary);margin-top:8px;text-align:center"></div>
+        </div>
+
+        <!-- アップロード後AI解析結果 -->
+        <div id="upload-result" style="display:none;margin-top:16px">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+            <span style="font-size:12px;font-weight:600;color:var(--text-secondary)">📝 文字起こし結果</span>
+          </div>
+          <div class="transcript-box" id="upload-transcript"></div>
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/></svg>
+            <span style="font-size:12px;font-weight:600;color:var(--text-secondary)">AI抽出結果</span>
+          </div>
+          <div class="ai-extract-grid" id="upload-ai-grid"></div>
+        </div>
+      </div>
+
+      <!-- ── 手入力パネル ── -->
+      <div class="reg-panel" id="regpanel-manual">
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">取引先名<span class="req">*</span></label>
+            <input class="form-input" id="f-client" type="text" placeholder="例：株式会社○○商事">
+          </div>
+          <div class="form-group">
+            <label class="form-label">取引先電話番号</label>
+            <input class="form-input" id="f-phone" type="tel" placeholder="例：03-1234-5678">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">発地<span class="req">*</span></label>
+            <input class="form-input" id="f-from" type="text" placeholder="例：埼玉県川口市">
+          </div>
+          <div class="form-group">
+            <label class="form-label">着地<span class="req">*</span></label>
+            <input class="form-input" id="f-to" type="text" placeholder="例：神奈川県横浜市">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">荷物・品名</label>
+            <input class="form-input" id="f-goods" type="text" placeholder="例：パレット / 800kg / 常温">
+          </div>
+          <div class="form-group">
+            <label class="form-label">重量</label>
+            <input class="form-input" id="f-weight" type="text" placeholder="例：800kg">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">希望納期<span class="req">*</span></label>
+            <input class="form-input" id="f-deadline" type="text" placeholder="例：05/25 AM指定">
+          </div>
+          <div class="form-group">
+            <label class="form-label">車格</label>
+            <select class="form-select" id="f-vehicle">
+              <option value="">選択してください</option>
+              <option>軽バン</option><option>2tトラック</option><option>4tウィング</option>
+              <option>10tトラック</option><option>トレーラー</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-row full">
+          <div class="form-group">
+            <label class="form-label">条件・備考</label>
+            <input class="form-input" id="f-note" type="text" placeholder="例：時間厳守 / バース予約済み">
+          </div>
+        </div>
+        <div class="form-row full">
+          <div class="form-group">
+            <label class="form-label">受付チャネル</label>
+            <select class="form-select" id="f-channel">
+              <option value="tel">電話</option><option value="mail">メール</option>
+              <option value="fax">FAX</option><option value="other">その他</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /reg-body -->
+
+    <div class="modal-footer" style="justify-content:space-between">
+      <button class="btn btn-secondary" onclick="closeModal('register-modal')">キャンセル</button>
+      <button class="btn btn-primary" id="reg-submit-btn" onclick="submitNewCase()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/></svg>
+        案件一覧へ登録
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- トースト -->
+<div class="toast-container" id="toast-container"></div>
+
+<script>
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+//  データ
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+const unprocessedCases = [
+  { id:'20240524001', status:'未解析', client:'株式会社○○商事', from:'埼玉県川口市', to:'神奈川県横浜市', goods:'パレット / 800kg / 常温', deadline:'05/25 AM指定', ch:'tel', time:'09:15', analyzed:true,
+    aiResult:{ confidence:'高信頼度', client:'株式会社○○商事', from:'埼玉県川口市', to:'神奈川県横浜市', goods:'パレット / 800kg / 常温', deadline:'05/25 AM指定', conditions:'時間厳守 / バース予約済み', vehicle:'4tウィング', count:1 },
+    vehicles:[ {rank:1,id:'車両1245',driver:'山田 一郎',base:'川口市',avail:'空車',cap:'2,000kg',stars:5,score:95},
+               {rank:2,id:'車両1123',driver:'鈴木 次郎',base:'川口市',avail:'空車',cap:'1,500kg',stars:4,score:88},
+               {rank:3,id:'車両1356',driver:'佐藤 三郎',base:'戸田市',avail:'空車',cap:'1,200kg',stars:4,score:82} ],
+    fareResult: null
+  },
+  { id:'20240524002', status:'要確認', client:'△△食品株式会社', from:'千葉県船橋市', to:'東京都大田区', goods:'ケース / 500kg / 冷蔵', deadline:'05/24 PM指定', ch:'tel', time:'09:26', analyzed:false,
+    vehicles:[ {rank:1,id:'車両0887',driver:'田中 四郎',base:'船橋市',avail:'空車',cap:'1,000kg',stars:4,score:78} ]
+  },
+  { id:'20240524003', status:'未解析', client:'株式会社□□製作所', from:'茨城県つくば市', to:'愛知県名古屋市', goods:'機械部品 / 1200kg / 常温', deadline:'05/25 終日', ch:'tel', time:'09:42', analyzed:false,
+    vehicles:[]
+  },
+  { id:'20240524004', status:'未解析', client:'◇◇アパレル株式会社', from:'東京都渋谷区', to:'大阪府大阪市', goods:'アパレル / 300kg / 常温', deadline:'05/26 AM指定', ch:'mail', time:'10:05', analyzed:false,
+    vehicles:[]
+  },
+];
+
+const processingCases = [
+  { id:'20240524101', status:'処理中', priority:'緊急', client:'株式会社○○商事', from:'埼玉県川口市', to:'神奈川県横浜市', goods:'パレット / 800kg / 常温', deadline:'05/25 AM', vehicle:'車両1245', driver:'山田 一郎', distance:'35km', selectedVehicleIdx:0,
+    vehicles:[
+      {rank:1,id:'車両1245',driver:'山田 一郎',base:'川口市',avail:'空車',cap:'2,000kg',stars:5,score:95,
+       law:{ status:'ok', label:'適合', items:[
+         {ok:true, title:'日間運転時間', val:'全員 9h以内'},
+         {ok:true, title:'拘束時間',     val:'全員 13h以内'},
+         {ok:true, title:'週間上限時間', val:'全員 週65h以内'},
+         {ok:true, title:'勤務間休息',   val:'インターバル8h確保'},
+         {ok:true, title:'連続運転制限', val:'上限まで余裕あり'},
+         {ok:true, title:'休憩確保',     val:'30分休憩ルール適合'},
+       ]}},
+      {rank:2,id:'車両1123',driver:'鈴木 次郎',base:'川口市',avail:'空車',cap:'1,500kg',stars:4,score:88,
+       law:{ status:'warn', label:'要確認', items:[
+         {ok:false,title:'連続運転制限', val:'連続運転3.6h — あと0.4hで上限'},
+         {ok:true, title:'日間運転時間', val:'全員 9h以内'},
+         {ok:true, title:'拘束時間',     val:'全員 13h以内'},
+         {ok:true, title:'週間上限時間', val:'全員 週65h以内'},
+         {ok:true, title:'勤務間休息',   val:'翌日シフト問題なし'},
+         {ok:true, title:'休憩確保',     val:'30分休憩ルール適合'},
+       ]}},
+      {rank:3,id:'車両1356',driver:'佐藤 三郎',base:'戸田市',avail:'空車',cap:'1,200kg',stars:4,score:79,
+       law:{ status:'ok', label:'適合', items:[
+         {ok:true, title:'日間運転時間', val:'全員 9h以内'},
+         {ok:true, title:'拘束時間',     val:'全員 13h以内'},
+         {ok:true, title:'週間上限時間', val:'全員 週65h以内'},
+         {ok:true, title:'勤務間休息',   val:'インターバル8h確保'},
+         {ok:true, title:'連続運転制限', val:'上限まで余裕あり'},
+         {ok:true, title:'休憩確保',     val:'30分休憩ルール適合'},
+       ]}},
+    ]
+  },
+  { id:'20240524102', status:'処理中', priority:'通常', client:'南関東物流株式会社', from:'神奈川県川崎市', to:'静岡県静岡市', goods:'電子部品 / 400kg / 精密', deadline:'05/24 夕方', vehicle:'車両2201', driver:'伊藤 五郎', distance:'120km', selectedVehicleIdx:0,
+    vehicles:[
+      {rank:1,id:'車両2201',driver:'伊藤 五郎',base:'川崎市',avail:'空車',cap:'1,500kg',stars:5,score:91,
+       law:{ status:'ok', label:'適合', items:[
+         {ok:true, title:'日間運転時間', val:'全員 9h以内'},
+         {ok:true, title:'拘束時間',     val:'全員 13h以内'},
+         {ok:true, title:'週間上限時間', val:'全員 週65h以内'},
+         {ok:true, title:'勤務間休息',   val:'インターバル8h確保'},
+         {ok:true, title:'連続運転制限', val:'上限まで余裕あり'},
+         {ok:true, title:'休憩確保',     val:'30分休憩ルール適合'},
+       ]}},
+      {rank:2,id:'車両3312',driver:'中村 六太',base:'横浜市',avail:'空車',cap:'2,000kg',stars:4,score:83,
+       law:{ status:'warn', label:'要確認', items:[
+         {ok:false,title:'連続運転制限', val:'連続運転3.2h — あと0.8hで上限'},
+         {ok:true, title:'日間運転時間', val:'全員 9h以内'},
+         {ok:false,title:'週間上限時間', val:'今週 62h — あと3hで上限'},
+         {ok:true, title:'拘束時間',     val:'全員 13h以内'},
+         {ok:true, title:'勤務間休息',   val:'翌日シフト問題なし'},
+         {ok:true, title:'休憩確保',     val:'30分休憩ルール適合'},
+       ]}},
+      {rank:3,id:'車両0445',driver:'小林 七海',base:'川崎市',avail:'空車',cap:'1,200kg',stars:3,score:74,
+       law:{ status:'ok', label:'適合', items:[
+         {ok:true, title:'日間運転時間', val:'全員 9h以内'},
+         {ok:true, title:'拘束時間',     val:'全員 13h以内'},
+         {ok:true, title:'週間上限時間', val:'全員 週65h以内'},
+         {ok:true, title:'勤務間休息',   val:'インターバル8h確保'},
+         {ok:true, title:'連続運転制限', val:'上限まで余裕あり'},
+         {ok:true, title:'休憩確保',     val:'30分休憩ルール適合'},
+       ]}},
+    ]
+  },
+  { id:'20240524103', status:'処理中', priority:'通常', client:'北海道産直食品', from:'東京都江東区', to:'千葉県千葉市', goods:'生鮮食品 / 600kg / 冷蔵', deadline:'05/24 夜', vehicle:'未割当', driver:'未割当', distance:'45km', selectedVehicleIdx:0,
+    vehicles:[
+      {rank:1,id:'車両0552',driver:'渡辺 六郎',base:'江東区',avail:'空車',cap:'1,000kg',stars:4,score:82,
+       law:{ status:'ok', label:'適合', items:[
+         {ok:true, title:'日間運転時間', val:'全員 9h以内'},
+         {ok:true, title:'拘束時間',     val:'全員 13h以内'},
+         {ok:true, title:'週間上限時間', val:'全員 週65h以内'},
+         {ok:true, title:'勤務間休息',   val:'インターバル8h確保'},
+         {ok:true, title:'連続運転制限', val:'上限まで余裕あり'},
+         {ok:true, title:'休憩確保',     val:'30分休憩ルール適合'},
+       ]}},
+      {rank:2,id:'車両0781',driver:'加藤 八郎',base:'墨田区',avail:'空車',cap:'1,200kg',stars:4,score:76,
+       law:{ status:'warn', label:'要確認', items:[
+         {ok:false,title:'連続運転制限', val:'連続運転3.6h — あと0.4hで上限'},
+         {ok:true, title:'日間運転時間', val:'全員 9h以内'},
+         {ok:true, title:'拘束時間',     val:'全員 13h以内'},
+         {ok:true, title:'週間上限時間', val:'全員 週65h以内'},
+         {ok:true, title:'勤務間休息',   val:'翌日シフト問題なし'},
+         {ok:true, title:'休憩確保',     val:'30分休憩ルール適合'},
+       ]}},
+      {rank:3,id:'車両1099',driver:'田辺 九条',base:'江戸川区',avail:'空車',cap:'800kg',stars:3,score:68,
+       law:{ status:'ok', label:'適合', items:[
+         {ok:true, title:'日間運転時間', val:'全員 9h以内'},
+         {ok:true, title:'拘束時間',     val:'全員 13h以内'},
+         {ok:true, title:'週間上限時間', val:'全員 週65h以内'},
+         {ok:true, title:'勤務間休息',   val:'インターバル8h確保'},
+         {ok:true, title:'連続運転制限', val:'上限まで余裕あり'},
+         {ok:true, title:'休憩確保',     val:'30分休憩ルール適合'},
+       ]}},
+    ]
+  },
+];
+
+const processedCases = [
+  { id:'20240524001', status:'完了', client:'株式会社○○商事', from:'埼玉県川口市', to:'神奈川県横浜市', goods:'パレット / 800kg / 常温',
+    completion:'2024/05/25 09:32', distance:'35km', delay:'なし', driver:'山田 一郎', vehicle:'1245',
+    sales:45000, fuel:18000, other:0, profit:27000, margin:60,
+    invoiceNo:'INV-202405-00123', invoiceDate:'2024/05/26', due:'2024/06/30', paid:false,
+    progress:62, truckTop:50, progressPct:68, remain:'12', eta:'11:15', donekm:23
+  },
+  { id:'20240524100', status:'完了', client:'△△食品株式会社', from:'千葉県船橋市', to:'東京都大田区', goods:'ケース / 500kg / 冷蔵',
+    completion:'2024/05/24 15:20', distance:'42km', delay:'なし', driver:'田中 四郎', vehicle:'0887',
+    sales:38000, fuel:14000, other:2000, profit:22000, margin:58,
+    invoiceNo:'INV-202405-00120', invoiceDate:'2024/05/25', due:'2024/06/25', paid:true,
+    progress:45, truckTop:55, progressPct:42, remain:'24', eta:'13:50', donekm:18
+  },
+  { id:'20240523099', status:'完了', client:'XYZ物産株式会社', from:'東京都品川区', to:'埼玉県さいたま市', goods:'事務用品 / 200kg / 常温',
+    completion:'2024/05/23 17:45', distance:'28km', delay:'なし', driver:'鈴木 次郎', vehicle:'1123',
+    sales:22000, fuel:9000, other:0, profit:13000, margin:59,
+    invoiceNo:'INV-202405-00098', invoiceDate:'2024/05/24', due:'2024/06/24', paid:false,
+    progress:78, truckTop:45, progressPct:85, remain:'4', eta:'10:58', donekm:24
+  },
+];
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+//  ページ・フェーズ切替
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+function showPage(name) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  const page = document.getElementById('page-' + name);
+  if (page) page.classList.add('active');
+  event.currentTarget.classList.add('active');
+  if (name === 'dispatch') { setTimeout(renderDispatchContent, 30); }
+}
+
+function switchPhase(phase) {
+  document.querySelectorAll('.phase-tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.phase-content').forEach(c => c.classList.remove('active'));
+  document.querySelector('.phase-tab.' + phase).classList.add('active');
+  document.getElementById('phase-' + phase).classList.add('active');
+  const btn = document.getElementById('btn-new-register');
+  if (btn) btn.style.display = phase === 'unprocessed' ? '' : 'none';
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+//  未処理フェーズ描画
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+function renderUnprocessedList() {
+  const el = document.getElementById('unprocessed-list');
+  el.innerHTML = unprocessedCases.map((c, i) => `
+    <div class="case-card ${i===0?'selected':''}" onclick="selectUnprocessed(${i})" id="ucard-${i}">
+      <div class="case-card-header">
+        <span class="case-no">No. ${c.id}</span>
+        <span class="case-status-badge ${c.status==='未解析'?'badge-unanalyzed':'badge-checking'}">${c.status}</span>
+      </div>
+      <div class="case-client">${c.client}</div>
+      <div class="case-route">
+        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/></svg>
+        ${c.from} → ${c.to}
+      </div>
+      <div class="case-meta">
+        <div class="case-meta-item">📦 ${c.goods}</div>
+        <div class="case-meta-item">🕐 納品：${c.deadline}</div>
+      </div>
+      <div class="case-actions-mini">
+        ${c.analyzed ? `<button class="btn btn-primary btn-sm" onclick="event.stopPropagation();openMatchingModal(${i})">マッチングへ</button>` 
+          : `<button class="btn btn-secondary btn-sm" onclick="event.stopPropagation();runAnalysis(${i})">AI解析</button>`}
+        <button class="btn btn-secondary btn-sm" onclick="event.stopPropagation();selectUnprocessed(${i})">確認・編集</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+let selectedUnprocessed = 0;
+function selectUnprocessed(i) {
+  selectedUnprocessed = i;
+  document.querySelectorAll('#unprocessed-list .case-card').forEach((el,idx) => {
+    el.classList.toggle('selected', idx===i);
+  });
+  renderUnprocessedDetail(i);
+}
+
+function renderUnprocessedDetail(i) {
+  const c = unprocessedCases[i];
+  const el = document.getElementById('unprocessed-detail');
+  if (!c) { el.innerHTML = ''; return; }
+
+  const barsHtml = Array.from({length:32}, (_,k) => {
+    const h = 8 + Math.sin(k*0.7)*10 + Math.random()*12;
+    return `<div class="waveform-bar" style="height:${Math.max(4,h)}px"></div>`;
+  }).join('');
+
+  let vehicleRows = '';
+  if (c.vehicles && c.vehicles.length) {
+    vehicleRows = c.vehicles.map((v,ri) => `
+      <tr class="${ri===0?'vehicle-row-selected':''}">
+        <td><div class="vehicle-rank rank-${v.rank}">${v.rank}</div></td>
+        <td><span style="font-family:'Inter',sans-serif;font-weight:600">${v.id}</span></td>
+        <td>${v.driver}</td>
+        <td>${v.base}</td>
+        <td><span class="avail-badge avail-ok">${v.avail}</span></td>
+        <td>${v.cap}</td>
+        <td><span class="star-rating">${'★'.repeat(v.stars)}${'☆'.repeat(5-v.stars)}</span></td>
+        <td><span class="ai-score score-high">${v.score}</span></td>
+      </tr>
+    `).join('');
+  } else {
+    vehicleRows = '<tr><td colspan="8" style="text-align:center;padding:20px;color:var(--text-muted)">AI解析後に候補車両が表示されます</td></tr>';
+  }
+
+  el.innerHTML = `
+    ${c.analyzed ? `
+    <div style="display:flex;gap:8px;margin-bottom:16px">
+      <button class="btn btn-outline btn-sm">仮押さえ</button>
+      <button class="btn btn-primary" onclick="openMatchingModal(${i})">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="1" y="3" width="15" height="13" rx="2"/><path d="M16 8h4l3 4v3h-7V8z"/></svg>
+        マッチングへ
+      </button>
+      <button class="btn btn-secondary btn-sm">協力会社へ依頼</button>
+    </div>
+    ` : ''}
+
+    ${c.analyzed ? `
+    <div class="detail-card">
+      <div class="detail-card-header">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20z"/><path d="M12 8v4l3 3"/></svg>
+        <div class="detail-card-title">AI抽出結果</div>
+        <span class="detail-card-badge badge-high" style="margin-left:auto">${c.aiResult.confidence}</span>
+      </div>
+      <div class="detail-card-body">
+        <div class="info-grid">
+          <div class="info-item"><div class="info-label">取引先</div><div class="info-value">${c.aiResult.client}</div></div>
+          <div class="info-item"><div class="info-label">発地</div><div class="info-value">${c.aiResult.from}</div></div>
+          <div class="info-item"><div class="info-label">着地</div><div class="info-value">${c.aiResult.to}</div></div>
+          <div class="info-item"><div class="info-label">荷物</div><div class="info-value">${c.aiResult.goods}</div></div>
+          <div class="info-item"><div class="info-label">納期</div><div class="info-value">${c.aiResult.deadline}</div></div>
+          <div class="info-item"><div class="info-label">条件・備考</div><div class="info-value">${c.aiResult.conditions}</div></div>
+          <div class="info-item"><div class="info-label">車格（推定）</div><div class="info-value">${c.aiResult.vehicle}</div></div>
+          <div class="info-item"><div class="info-label">必要台数</div><div class="info-value">${c.aiResult.count}台</div></div>
+        </div>
+      </div>
+    </div>
+    ` : `
+    <div class="detail-card">
+      <div class="detail-card-header">
+        <div class="detail-card-title">案件情報</div>
+        <span class="detail-card-badge badge-medium" style="margin-left:auto">${c.status}</span>
+      </div>
+      <div class="detail-card-body">
+        <div class="info-grid">
+          <div class="info-item"><div class="info-label">取引先</div><div class="info-value">${c.client}</div></div>
+          <div class="info-item"><div class="info-label">発地</div><div class="info-value">${c.from}</div></div>
+          <div class="info-item"><div class="info-label">着地</div><div class="info-value">${c.to}</div></div>
+          <div class="info-item"><div class="info-label">荷物</div><div class="info-value">${c.goods}</div></div>
+          <div class="info-item"><div class="info-label">納期</div><div class="info-value">${c.deadline}</div></div>
+        </div>
+        <div style="margin-top:12px">
+          <button class="btn btn-primary btn-sm" onclick="runAnalysis(${i})">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20z"/></svg>
+            AI解析を実行
+          </button>
+        </div>
+      </div>
+    </div>
+    `}
+
+    <div class="detail-card">
+      <div class="detail-card-header">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2"><rect x="1" y="3" width="15" height="13" rx="2"/><path d="M16 8h4l3 4v3h-7V8z"/></svg>
+        <div class="detail-card-title">車両候補（AI推薦）</div>
+      </div>
+      <div class="detail-card-body" style="padding:0">
+        <table class="vehicle-table">
+          <thead><tr><th></th><th>車両</th><th>ドライバー</th><th>現在地</th><th>空き</th><th>積載能力</th><th>評価</th><th>AIスコア</th></tr></thead>
+          <tbody>${vehicleRows}</tbody>
+        </table>
+      </div>
+    </div>
+
+    ${c.analyzed && c.fareResult ? `
+    <div class="fare-card" id="fare-card-${i}">
+      <div class="fare-header">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#d97706" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+        <div class="fare-title">運賃適正判定（AI）</div>
+        <span class="fare-status ${c.fareResult.statusClass}" style="margin-left:auto">${c.fareResult.statusIcon} ${c.fareResult.statusLabel}</span>
+      </div>
+      <div class="fare-body">
+
+        <!-- 推奨価格 -->
+        <div class="fare-hero">
+          <div class="fare-price">¥${c.fareResult.recommend.toLocaleString()}</div>
+          <div class="fare-unit">推奨提示価格</div>
+        </div>
+        <div class="fare-range">相場レンジ：¥${c.fareResult.min.toLocaleString()} 〜 ¥${c.fareResult.max.toLocaleString()}</div>
+
+        <!-- コスト内訳 -->
+        <div class="fare-breakdown" style="margin-top:14px">
+          <div class="fare-breakdown-title">📊 コスト内訳（積み上げ計算）</div>
+          ${c.fareResult.costs.map(cost => `
+          <div class="fare-bar-row">
+            <div class="fare-bar-label">${cost.label}</div>
+            <div class="fare-bar-wrap"><div class="fare-bar-fill" style="width:${cost.pct}%;background:${cost.color}"></div></div>
+            <div class="fare-bar-val">¥${cost.val.toLocaleString()}</div>
+          </div>`).join('')}
+          <div style="border-top:1px dashed var(--border);margin-top:8px;padding-top:8px;display:flex;justify-content:space-between;font-size:12px;font-weight:700">
+            <span>原価合計</span>
+            <span style="font-family:'Inter',sans-serif;color:var(--sidebar-bg)">¥${c.fareResult.totalCost.toLocaleString()}</span>
+          </div>
+        </div>
+
+        <!-- 相場比較 -->
+        <div class="fare-breakdown-title">📈 市場相場比較</div>
+        <div class="fare-market">
+          <div class="fare-market-item"><div class="fare-market-label">相場 下限</div><div class="fare-market-val low">¥${c.fareResult.min.toLocaleString()}</div></div>
+          <div class="fare-market-item" style="border-color:var(--accent)"><div class="fare-market-label">相場 平均</div><div class="fare-market-val mid">¥${c.fareResult.avg.toLocaleString()}</div></div>
+          <div class="fare-market-item"><div class="fare-market-label">相場 上限</div><div class="fare-market-val high">¥${c.fareResult.max.toLocaleString()}</div></div>
+        </div>
+
+        <!-- 提案パターン -->
+        <div class="fare-breakdown-title">💡 価格提案パターン</div>
+        <div class="fare-proposals">
+          ${c.fareResult.proposals.map((p,pi) => `
+          <div class="fare-proposal ${pi===0?'selected':''}" onclick="selectFareProposal(this)">
+            <span class="fare-proposal-tag ${p.tagClass}">${p.tag}</span>
+            <div class="fare-proposal-detail">${p.detail}</div>
+            <div class="fare-proposal-price">¥${p.price.toLocaleString()}</div>
+          </div>`).join('')}
+        </div>
+
+        <!-- AI根拠 -->
+        <div style="margin-top:12px;background:#f8fafc;border-radius:8px;padding:10px 12px;font-size:11px;color:var(--text-secondary);line-height:1.7;border:1px solid var(--border)">
+          <span style="font-weight:600;color:var(--sidebar-bg)">🤖 AI判定根拠：</span>${c.fareResult.reason}
+        </div>
+      </div>
+    </div>
+    ` : c.analyzed ? `<div class="fare-card"><div class="fare-loading"><div class="fare-loading-spinner"></div>運賃適正判定を計算中...</div></div>` : ''}
+
+    <div class="detail-card">
+      <div class="detail-card-header">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--orange)" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07"/></svg>
+        <div class="detail-card-title">録音（電話）</div>
+      </div>
+      <div class="detail-card-body">
+        <div class="audio-player">
+          <button class="audio-play-btn">▶</button>
+          <div class="waveform">${barsHtml}</div>
+          <span class="audio-time">00:00 / 00:45</span>
+          <span class="audio-speed">1.0x</span>
+        </div>
+        <div style="margin-top:8px;display:flex;gap:8px">
+          <button class="btn btn-secondary btn-sm">メモを追加</button>
+          <button class="btn btn-secondary btn-sm">文字起こしを見る</button>
+        </div>
+      </div>
+    </div>
+
+  `;
+}
+
+function runAnalysis(i) {
+  showToast('AI解析を開始しました...', 'success');
+  const c = unprocessedCases[i];
+  c.analyzed = true;
+  c.status = '未解析';
+  c.fareResult = null; // ローディング表示
+
+  if (!c.aiResult) {
+    c.aiResult = {
+      confidence:'中信頼度', client:c.client,
+      from:c.from, to:c.to,
+      goods:c.goods, deadline:c.deadline,
+      conditions:'特になし', vehicle:'2tトラック', count:1
+    };
+  }
+  if (!c.vehicles || !c.vehicles.length) {
+    c.vehicles = [
+      {rank:1,id:'車両0771',driver:'高橋 七郎',base:'近隣',avail:'空車',cap:'2,000kg',stars:4,score:80}
+    ];
+  }
+
+  renderUnprocessedList();
+  renderUnprocessedDetail(i);
+
+  // 非同期で運賃判定
+  calcFare(c).then(fareResult => {
+    unprocessedCases[i].fareResult = fareResult;
+    renderUnprocessedDetail(i);
+    showToast('AI解析・運賃判定が完了しました', 'success');
+  });
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+//  処理中フェーズ描画
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+function renderProcessingList() {
+  const el = document.getElementById('processing-list');
+  el.innerHTML = processingCases.map((c, i) => `
+    <div class="case-card ${i===0?'selected':''}" onclick="selectProcessing(${i})" id="pcard-${i}" style="border-left:${c.priority==='緊急'?'3px solid var(--red)':''}">
+      <div class="case-card-header">
+        <span class="case-no">No. ${c.id}</span>
+        <span class="case-status-badge ${c.priority==='緊急'?'badge-urgent':'badge-normal'}">${c.priority}</span>
+      </div>
+      <div class="case-client">${c.client}</div>
+      <div class="case-route">
+        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/></svg>
+        ${c.from} → ${c.to}
+      </div>
+      <div class="case-meta">
+        <div class="case-meta-item">🚛 ${c.driver}</div>
+        <div class="case-meta-item">📅 納期：${c.deadline}</div>
+      </div>
+      <div class="case-actions-mini">
+        <button class="btn btn-orange btn-sm" onclick="event.stopPropagation();openConfirmModal(${i})">確定（ドライバーへ指示）</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+let selectedProcessing = 0;
+function selectProcessing(i) {
+  selectedProcessing = i;
+  document.querySelectorAll('#processing-list .case-card').forEach((el,idx) => {
+    el.classList.toggle('selected', idx===i);
+  });
+  renderProcessingDetail(i);
+}
+
+function renderProcessingDetail(i) {
+  const c = processingCases[i];
+  const el = document.getElementById('processing-detail');
+  const selIdx = c.selectedVehicleIdx ?? 0;
+  const selV = c.vehicles[selIdx];
+
+  const vcards = c.vehicles.map((v, ri) => {
+    const isTop = ri === 0;
+    const isSel = ri === selIdx;
+    return `
+    <div class="vcard ${isTop?'vcard-top':''} ${isSel?'vcard-selected':''}"
+         onclick="selectVehicle(${i},${ri})">
+      ${isTop ? '<div class="vcard-recommend-badge">AI 推奨</div>' : ''}
+      <div class="vcard-rank vcard-rank-${v.rank}">${v.rank}</div>
+      <div class="vcard-info">
+        <div class="vcard-driver">${v.driver}</div>
+        <div class="vcard-vehicle">${v.id}</div>
+        <div class="vcard-tags">
+          <span class="vcard-tag vcard-tag-base">📍 ${v.base}</span>
+          <span class="vcard-tag vcard-tag-cap">📦 ${v.cap}</span>
+          <span class="vcard-tag vcard-tag-avail">✅ ${v.avail}</span>
+          ${v.law ? (() => {
+            const l = v.law;
+            const icon = l.status==='ok' ? '✅' : l.status==='warn' ? '⚠️' : '❌';
+            const warnCount = l.items.filter(it=>!it.ok).length;
+            const tipItems = l.items.map(it => `
+              <div class="law-tip-item ${!it.ok?'warn-item':''}">
+                <div class="law-tip-label">${it.ok?'<span style=\"color:#6ee7b7\">✅</span>':'<span style=\"color:#fca5a5\">⚠️</span>'} ${it.title}</div>
+                <div class="law-tip-val">${it.val}</div>
+              </div>`).join('');
+            return `<span class="law-chip-wrap" onclick="event.stopPropagation()">
+              <span class="law-chip ${l.status}">${icon} 法令${l.label}${warnCount>0?' ('+warnCount+'件)':''}</span>
+              <div class="law-tip">
+                <div class="law-tip-title">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="${l.status==='ok'?'#6ee7b7':'#fcd34d'}" stroke-width="2.5"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                  法令適合判定
+                </div>
+                <div class="law-tip-grid">${tipItems}</div>
+              </div>
+            </span>`;
+          })() : ''}
+        </div>
+      </div>
+      <div class="vcard-right">
+        <div class="vcard-score">${v.score}</div>
+        <div class="vcard-score-label">AIスコア</div>
+        <div class="vcard-stars">${'★'.repeat(v.stars)}${'☆'.repeat(5-v.stars)}</div>
+      </div>
+      ${isSel ? `<div class="vcard-check"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg></div>` : ''}
+    </div>`;
+  }).join('');
+
+  el.innerHTML = `
+    <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap">
+      <button class="btn btn-secondary btn-sm">仮押さえ</button>
+      <button class="btn btn-orange" onclick="openConfirmModal(${i})">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+        確定（ドライバーへ指示依頼）
+      </button>
+      <button class="btn btn-secondary btn-sm">協力会社へ依頼</button>
+    </div>
+
+    <div class="detail-card">
+      <div class="detail-card-header">
+        <div class="detail-card-title">案件情報 No. ${c.id}</div>
+        <span class="case-status-badge ${c.priority==='緊急'?'badge-urgent':'badge-normal'}" style="margin-left:auto">${c.priority}</span>
+      </div>
+      <div class="detail-card-body">
+        <div class="info-grid">
+          <div class="info-item"><div class="info-label">取引先</div><div class="info-value">${c.client}</div></div>
+          <div class="info-item"><div class="info-label">必要車格</div><div class="info-value">4tウィング</div></div>
+          <div class="info-item"><div class="info-label">発地</div><div class="info-value">${c.from}</div></div>
+          <div class="info-item"><div class="info-label">着地</div><div class="info-value">${c.to}</div></div>
+          <div class="info-item"><div class="info-label">荷物</div><div class="info-value">${c.goods}</div></div>
+          <div class="info-item"><div class="info-label">納期</div><div class="info-value">${c.deadline}</div></div>
+          <div class="info-item"><div class="info-label">必要台数</div><div class="info-value">1台</div></div>
+          <div class="info-item"><div class="info-label">距離</div><div class="info-value">${c.distance}</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="detail-card">
+      <div class="detail-card-header">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2"><rect x="1" y="3" width="15" height="13" rx="2"/><path d="M16 8h4l3 4v3h-7V8z"/></svg>
+        <div class="detail-card-title">車両候補（AI推薦）</div>
+        <span style="margin-left:auto;font-size:10px;color:var(--text-muted)">クリックで選択変更</span>
+      </div>
+      <div class="vcard-list">${vcards}</div>
+    </div>
+
+    <!-- 選択中の車両サマリー -->
+    <div style="background:var(--accent-pale);border:1.5px solid var(--sidebar-bg);border-radius:10px;padding:12px 16px;margin-bottom:16px;display:flex;align-items:center;gap:12px">
+      <div style="width:36px;height:36px;background:var(--sidebar-bg);border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#6DD5A8" stroke-width="2"><rect x="1" y="3" width="15" height="13" rx="2"/><path d="M16 8h4l3 4v3h-7V8z"/><circle cx="5.5" cy="18.5" r="2"/><circle cx="18.5" cy="18.5" r="2"/></svg>
+      </div>
+      <div style="flex:1">
+        <div style="font-size:10px;color:var(--sidebar-bg);font-weight:600;margin-bottom:2px">現在の選択車両</div>
+        <div style="font-size:14px;font-weight:800;color:var(--sidebar-bg)" id="selected-summary-${i}">${selV.driver}（${selV.id}）</div>
+      </div>
+      <div style="font-size:22px;font-weight:800;font-family:'Inter',sans-serif;color:var(--sidebar-bg)">
+        ${selV.score}<span style="font-size:10px;font-weight:400;color:var(--text-muted);margin-left:2px">pt</span>
+      </div>
+    </div>
+
+    <div class="detail-card">
+      <div class="detail-card-header">
+        <div class="detail-card-title">案件履歴</div>
+      </div>
+      <div class="detail-card-body">
+        <div class="timeline">
+          <div class="timeline-item"><div class="timeline-time">09:15</div><div class="timeline-dot"></div><div><div class="timeline-text">電話受付・AI解析完了</div><div class="timeline-by">配車 太郎</div></div></div>
+          <div class="timeline-item"><div class="timeline-time">10:02</div><div class="timeline-dot"></div><div><div class="timeline-text">案件情報を確認</div><div class="timeline-by">配車 太郎</div></div></div>
+          <div class="timeline-item"><div class="timeline-time">10:15</div><div class="timeline-dot"></div><div><div class="timeline-text">${c.vehicles[0].id} AI推薦・仮押さえ</div><div class="timeline-by">配車 太郎</div></div></div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function selectVehicle(caseIdx, vehicleIdx) {
+  processingCases[caseIdx].selectedVehicleIdx = vehicleIdx;
+  const v = processingCases[caseIdx].vehicles[vehicleIdx];
+  // ドライバー・車両も更新
+  processingCases[caseIdx].driver  = v.driver;
+  processingCases[caseIdx].vehicle = v.id;
+  renderProcessingDetail(caseIdx);
+  showToast(v.driver + '（' + v.id + '）を選択しました', 'success');
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+//  処理済みフェーズ描画
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+function renderProcessedList() {
+  const el = document.getElementById('processed-list');
+  el.innerHTML = processedCases.map((c, i) => `
+    <div class="processed-card ${i===0?'selected':''}" onclick="selectProcessed(${i})" id="dcard-${i}">
+      <div class="case-card-header">
+        <span class="case-no">No. ${c.id}</span>
+        <span class="completed-badge">完了</span>
+      </div>
+      <div class="case-client">${c.client}</div>
+      <div class="case-route">
+        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/></svg>
+        ${c.from} → ${c.to}
+      </div>
+      <div class="case-meta">
+        <div class="case-meta-item">✅ 完了：${c.completion}</div>
+        <div class="case-meta-item ${c.paid?'':''}">💰 ${c.paid?'入金済':'未入金'}</div>
+      </div>
+    </div>
+  `).join('');
+}
+
+let selectedProcessed = 0;
+function selectProcessed(i) {
+  selectedProcessed = i;
+  document.querySelectorAll('#processed-list .processed-card').forEach((el,idx) => {
+    el.classList.toggle('selected', idx===i);
+  });
+  renderProcessedDetail(i);
+  setTimeout(() => { drawLiveMap(i); startLiveUpdates(i); }, 50);
+}
+
+function renderProcessedDetail(i) {
+  const c = processedCases[i];
+  const el = document.getElementById('processed-detail');
+  el.innerHTML = `
+    <div class="detail-card">
+      <div class="detail-card-header">
+        <div class="detail-card-title">案件情報（完了）No. ${c.id}</div>
+        <span class="completed-badge" style="margin-left:auto">完了</span>
+      </div>
+      <div class="detail-card-body">
+        <div class="info-grid">
+          <div class="info-item"><div class="info-label">取引先</div><div class="info-value">${c.client}</div></div>
+          <div class="info-item"><div class="info-label">完了日時</div><div class="info-value">${c.completion}</div></div>
+          <div class="info-item"><div class="info-label">発地</div><div class="info-value">${c.from}</div></div>
+          <div class="info-item"><div class="info-label">着地</div><div class="info-value">${c.to}</div></div>
+          <div class="info-item"><div class="info-label">走行距離</div><div class="info-value">${c.distance}</div></div>
+          <div class="info-item"><div class="info-label">遅延</div><div class="info-value">${c.delay}</div></div>
+          <div class="info-item"><div class="info-label">車両</div><div class="info-value">${c.vehicle}</div></div>
+          <div class="info-item"><div class="info-label">配達完了</div><div class="info-value">✅</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="detail-card">
+      <div class="detail-card-header">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--sidebar-bg)" stroke-width="2"><rect x="1" y="3" width="15" height="13" rx="2"/><path d="M16 8h4l3 4v3h-7V8z"/><circle cx="5.5" cy="18.5" r="2"/><circle cx="18.5" cy="18.5" r="2"/></svg>
+        <div class="detail-card-title">車両情報（割当済み）</div>
+        <span style="margin-left:auto;font-size:10px;font-weight:600;padding:2px 8px;border-radius:10px;background:#d1fae5;color:#065f46">割当完了</span>
+      </div>
+      <div class="detail-card-body">
+        <!-- 車両・ドライバー メイン情報 -->
+        <div style="display:flex;gap:12px;margin-bottom:14px">
+          <!-- 車両 -->
+          <div style="flex:1;background:var(--accent-pale);border:1px solid #a7f3d0;border-radius:10px;padding:12px 14px">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+              <div style="width:32px;height:32px;background:var(--sidebar-bg);border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6DD5A8" stroke-width="2"><rect x="1" y="3" width="15" height="13" rx="2"/><path d="M16 8h4l3 4v3h-7V8z"/><circle cx="5.5" cy="18.5" r="2"/><circle cx="18.5" cy="18.5" r="2"/></svg>
+              </div>
+              <div>
+                <div style="font-size:9px;color:var(--text-muted);font-weight:600;letter-spacing:.05em">車両</div>
+                <div style="font-size:14px;font-weight:800;font-family:'Inter',sans-serif;color:var(--sidebar-bg)">車両 ${c.vehicle}</div>
+              </div>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
+              <div><div style="font-size:9px;color:var(--text-muted)">車格</div><div style="font-size:12px;font-weight:600">4tウィング</div></div>
+              <div><div style="font-size:9px;color:var(--text-muted)">積載量</div><div style="font-size:12px;font-weight:600">2,000 kg</div></div>
+              <div><div style="font-size:9px;color:var(--text-muted)">プレート</div><div style="font-size:12px;font-weight:600">品川 800 あ ${c.vehicle}</div></div>
+              <div><div style="font-size:9px;color:var(--text-muted)">稼働状況</div><div style="font-size:12px;font-weight:600;color:var(--green)">運行中</div></div>
+            </div>
+          </div>
+          <!-- ドライバー -->
+          <div style="flex:1;background:#f0f9ff;border:1px solid #bae6fd;border-radius:10px;padding:12px 14px">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+              <div style="width:32px;height:32px;background:var(--accent);border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:12px;font-weight:700;color:#fff">
+                ${c.driver.charAt(0)}
+              </div>
+              <div>
+                <div style="font-size:9px;color:var(--text-muted);font-weight:600;letter-spacing:.05em">ドライバー</div>
+                <div style="font-size:14px;font-weight:800;color:var(--sidebar-bg)">${c.driver}</div>
+              </div>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
+              <div><div style="font-size:9px;color:var(--text-muted)">所属</div><div style="font-size:12px;font-weight:600">東日本物流</div></div>
+              <div><div style="font-size:9px;color:var(--text-muted)">免許区分</div><div style="font-size:12px;font-weight:600">大型・牽引</div></div>
+              <div><div style="font-size:9px;color:var(--text-muted)">連絡先</div><div style="font-size:12px;font-weight:600">090-XXXX-XXXX</div></div>
+              <div><div style="font-size:9px;color:var(--text-muted)">評価</div><div style="font-size:12px;color:#f59e0b">★★★★★</div></div>
+            </div>
+          </div>
+        </div>
+        <!-- 割当情報の補足行 -->
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">
+          <div style="background:#f8fafc;border:1px solid var(--border);border-radius:8px;padding:8px 10px;text-align:center">
+            <div style="font-size:9px;color:var(--text-muted);margin-bottom:2px">割当日時</div>
+            <div style="font-size:12px;font-weight:700;font-family:'Inter',sans-serif">05/24 10:15</div>
+          </div>
+          <div style="background:#f8fafc;border:1px solid var(--border);border-radius:8px;padding:8px 10px;text-align:center">
+            <div style="font-size:9px;color:var(--text-muted);margin-bottom:2px">割当担当者</div>
+            <div style="font-size:12px;font-weight:700">配車 太郎</div>
+          </div>
+          <div style="background:#f8fafc;border:1px solid var(--border);border-radius:8px;padding:8px 10px;text-align:center">
+            <div style="font-size:9px;color:var(--text-muted);margin-bottom:2px">指示送信</div>
+            <div style="font-size:12px;font-weight:700;color:var(--green)">✅ 送信済み</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="detail-card">
+      <div class="detail-card-header">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 2v4M12 18v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M2 12h4M18 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/></svg>
+        <div class="detail-card-title">運行実績・動態管理</div>
+        <div style="margin-left:auto;display:flex;align-items:center;gap:6px">
+          <span style="font-size:10px;color:var(--text-muted)">最終更新：10:47</span>
+          <span style="width:7px;height:7px;border-radius:50%;background:#22c55e;display:inline-block;animation:pulse 1.5s infinite"></span>
+        </div>
+      </div>
+      <div class="detail-card-body">
+
+        <!-- ライブマップ -->
+        <div class="live-map" id="livemap-${i}">
+          <div class="live-map-roads"></div>
+          <div class="live-map-blocks" id="lmblocks-${i}"></div>
+
+          <!-- バッジ -->
+          <div class="map-badge-row">
+            <span class="map-badge gps">
+              <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="3"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/></svg>
+              GPS 連携中
+            </span>
+            <span class="map-badge dtc">
+              <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+              デジタコ 連携中
+            </span>
+          </div>
+
+          <!-- SVGルート -->
+          <svg style="position:absolute;inset:0;width:100%;height:100%;overflow:visible" id="routesvg-${i}"></svg>
+
+          <!-- 出発ピン -->
+          <div class="map-pin" style="left:14%;top:72%">
+            <div class="map-pin-circle" style="background:#475569">S</div>
+            <div class="map-pin-label">${c.from.replace('県','').replace('都','').replace('市','市')}</div>
+          </div>
+          <!-- 到着ピン -->
+          <div class="map-pin" style="left:82%;top:34%">
+            <div class="map-pin-circle" style="background:var(--red)">G</div>
+            <div class="map-pin-label">${c.to.replace('県','').replace('都','').replace('市','市')}</div>
+          </div>
+          <!-- トラック現在地 -->
+          <div class="map-truck" id="truck-${i}" style="left:${c.progress||62}%;top:${c.truckTop||50}%">
+            <div class="map-truck-icon">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#6DD5A8" stroke-width="2"><rect x="1" y="3" width="15" height="13" rx="2"/><path d="M16 8h4l3 4v3h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
+            </div>
+            <div class="map-truck-label">${c.driver} / 車両${c.vehicle}</div>
+          </div>
+
+          <!-- 左上ステータス -->
+          <div class="map-info-overlay">
+            <div class="map-info-live"><div class="live-dot"></div>LIVE 運行中</div>
+            <div class="map-info-row">
+              <div class="map-info-item"><div class="map-info-item-label">現在速度</div><div class="map-info-item-val" id="speed-${i}">62<span style="font-size:9px;font-weight:400"> km/h</span></div></div>
+              <div class="map-info-item"><div class="map-info-item-label">残距離</div><div class="map-info-item-val">${c.remain||'12'}<span style="font-size:9px;font-weight:400"> km</span></div></div>
+              <div class="map-info-item"><div class="map-info-item-label">到着予定</div><div class="map-info-item-val">${c.eta||'11:15'}</div></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 進捗バー -->
+        <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text-muted);margin-top:10px;margin-bottom:2px">
+          <span>📍 ${c.from}</span>
+          <span style="font-weight:600;color:var(--sidebar-bg)">${c.progressPct||68}% 完了</span>
+          <span>🏁 ${c.to}</span>
+        </div>
+        <div class="route-progress-bar">
+          <div class="route-progress-fill" style="width:${c.progressPct||68}%"></div>
+        </div>
+
+        <!-- ライブ統計 -->
+        <div class="live-stats-row">
+          <div class="live-stat">
+            <div class="live-stat-label">出発時刻</div>
+            <div class="live-stat-val">09:22</div>
+          </div>
+          <div class="live-stat">
+            <div class="live-stat-label">経過時間</div>
+            <div class="live-stat-val" id="elapsed-${i}">1:25</div>
+          </div>
+          <div class="live-stat">
+            <div class="live-stat-label">走行距離</div>
+            <div class="live-stat-val ok">${c.donekm||23} km</div>
+          </div>
+          <div class="live-stat">
+            <div class="live-stat-label">遅延状況</div>
+            <div class="live-stat-val ok">遅延なし</div>
+          </div>
+        </div>
+
+        <!-- イベントログ -->
+        <div style="margin-top:12px;font-size:11px;font-weight:600;color:var(--text-secondary);margin-bottom:6px">📋 運行イベントログ</div>
+        <div class="event-log">
+          <div class="event-log-item">
+            <div class="event-time">09:22</div>
+            <div class="event-icon start">🚀</div>
+            <div><div class="event-text">出発（GPS取得開始）</div><div class="event-sub">${c.from} / デジタコ記録開始</div></div>
+          </div>
+          <div class="event-log-item">
+            <div class="event-time">09:45</div>
+            <div class="event-icon move">🛣️</div>
+            <div><div class="event-text">高速道路進入</div><div class="event-sub">速度：88 km/h・燃費：8.2 km/L</div></div>
+          </div>
+          <div class="event-log-item">
+            <div class="event-time">10:12</div>
+            <div class="event-icon stop">⏸️</div>
+            <div><div class="event-text">一時停車（SA）</div><div class="event-sub">停車時間：8分</div></div>
+          </div>
+          <div class="event-log-item">
+            <div class="event-time">10:47</div>
+            <div class="event-icon move">📡</div>
+            <div><div class="event-text">現在地更新（GPS）</div><div class="event-sub">速度：62 km/h・残距離：12 km・ETA：11:15</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="detail-card">
+      <div class="detail-card-header">
+        <div class="detail-card-title">請求情報</div>
+        ${c.paid ? '<span class="paid-badge" style="margin-left:auto">入金済</span>' : '<span class="unpaid-badge" style="margin-left:auto">未入金</span>'}
+      </div>
+      <div class="detail-card-body">
+        <div class="invoice-section">
+          <div class="invoice-row"><span>売上金額</span><span style="font-family:'Inter',sans-serif;font-weight:600">¥${c.sales.toLocaleString()}</span></div>
+          <div class="invoice-row"><span>燃料費</span><span>¥${c.fuel.toLocaleString()}</span></div>
+          <div class="invoice-row"><span>その他費用</span><span>¥${c.other.toLocaleString()}</span></div>
+          <div class="invoice-row total"><span>粗利</span><span style="color:var(--green)">¥${c.profit.toLocaleString()}</span></div>
+          <div class="invoice-row"><span>粗利率</span><span style="font-family:'Inter',sans-serif;font-weight:700;color:var(--green)">${c.margin}%</span></div>
+        </div>
+        <div style="margin-top:10px">
+          <div class="info-grid">
+            <div class="info-item"><div class="info-label">請求書番号</div><div class="info-value" style="font-size:12px">${c.invoiceNo}</div></div>
+            <div class="info-item"><div class="info-label">請求日</div><div class="info-value" style="font-size:12px">${c.invoiceDate}</div></div>
+            <div class="info-item"><div class="info-label">支払期限</div><div class="info-value" style="font-size:12px">${c.due}</div></div>
+            <div class="info-item"><div class="info-label">支払状況</div><div class="info-value">${c.paid?'<span class="paid-badge">入金済</span>':'<span class="unpaid-badge">未入金</span>'}</div></div>
+          </div>
+        </div>
+        <div style="display:flex;gap:8px;margin-top:12px">
+          <button class="btn btn-outline btn-sm">📄 請求書を表示</button>
+          <button class="btn btn-secondary btn-sm">🔄 請求書を再発行</button>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+//  モーダル
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+let pendingMatchingIdx = null;
+function openMatchingModal(i) {
+  pendingMatchingIdx = i;
+  const c = unprocessedCases[i];
+  document.getElementById('modal-case-summary').innerHTML = `
+    <b>${c.client}</b>　${c.from} → ${c.to}<br>
+    ${c.goods}　納期：${c.deadline}
+  `;
+  document.getElementById('matching-modal').classList.add('open');
+  // チェックボックス初期化（毎回チェック済みに戻す）
+  setTimeout(() => {
+    const ck = document.getElementById('logipoke-sync-check');
+    if (ck) { ck.checked = true; ck.style.background = 'var(--sidebar-bg)'; }
+    const tick = document.getElementById('ck-tick-main');
+    if (tick) tick.style.opacity = '1';
+  }, 0);
+}
+
+function confirmMatching() {
+  closeModal('matching-modal');
+  const c = unprocessedCases[pendingMatchingIdx];
+  // 処理中リストへ追加
+  processingCases.unshift({
+    id: c.id, status:'処理中', priority:'通常',
+    client: c.client, from: c.from, to: c.to,
+    goods: c.goods, deadline: c.deadline,
+    vehicle: '未割当', driver: '未割当', distance: '---',
+    vehicles: c.vehicles || []
+  });
+  // 未処理から削除
+  unprocessedCases.splice(pendingMatchingIdx, 1);
+  renderUnprocessedList();
+  renderUnprocessedDetail(0);
+  // 処理中フェーズへ遷移
+  switchPhase('processing');
+  renderProcessingList();
+  renderProcessingDetail(0);
+  updatePhaseCounts();
+  showToast(`${c.client}を処理中フェーズへ移行しました`, 'success');
+}
+
+let pendingConfirmIdx = null;
+function openConfirmModal(i) {
+  pendingConfirmIdx = i;
+  const c = processingCases[i];
+  document.getElementById('confirm-case-summary').innerHTML = `
+    <b>${c.client}</b>　${c.from} → ${c.to}<br>
+    ドライバー：${c.driver}　車両：${c.vehicle}
+  `;
+
+  // 選択中車両の法令チェック
+  const selIdx = c.selectedVehicleIdx ?? 0;
+  const selV = c.vehicles[selIdx];
+  const lawWarningEl = document.getElementById('confirm-law-warning');
+  const lawItemsEl   = document.getElementById('confirm-law-items');
+
+  const warnItems = selV?.law?.items?.filter(it => !it.ok) || [];
+  if (warnItems.length > 0) {
+    lawWarningEl.style.display = 'block';
+    lawItemsEl.innerHTML = warnItems.map(it => `
+      <div style="display:flex;align-items:flex-start;gap:8px;background:#fff;border:1px solid #fde68a;border-radius:7px;padding:7px 10px">
+        <span style="font-size:14px;flex-shrink:0">⚠️</span>
+        <div>
+          <div style="font-size:11px;font-weight:700;color:#92400e">${it.title}</div>
+          <div style="font-size:11px;color:#78350f;margin-top:1px">${it.val}</div>
+        </div>
+      </div>
+    `).join('');
+  } else {
+    lawWarningEl.style.display = 'none';
+    lawItemsEl.innerHTML = '';
+  }
+
+  document.getElementById('confirm-modal').classList.add('open');
+}
+
+function confirmDispatch() {
+  closeModal('confirm-modal');
+  const c = processingCases[pendingConfirmIdx];
+  // 処理済みへ追加
+  processedCases.unshift({
+    id: c.id, status:'完了', client: c.client, from: c.from, to: c.to,
+    goods: c.goods, completion: new Date().toLocaleDateString('ja-JP') + ' 完了',
+    distance: c.distance, delay: 'なし', driver: c.driver, vehicle: c.vehicle,
+    sales: 45000, fuel: 16000, other: 0, profit: 29000, margin: 64,
+    invoiceNo: 'INV-202405-' + String(Math.floor(Math.random()*900)+100).padStart(5,'0'),
+    invoiceDate: new Date().toLocaleDateString('ja-JP'), due: '2024/06/30', paid: false
+  });
+  processingCases.splice(pendingConfirmIdx, 1);
+  renderProcessingList();
+  if (processingCases.length > 0) renderProcessingDetail(0);
+  else document.getElementById('processing-detail').innerHTML = '<div class="empty-state"><div class="empty-state-icon">✅</div><div>処理中の案件はありません</div></div>';
+  switchPhase('processed');
+  renderProcessedList();
+  renderProcessedDetail(0);
+  updatePhaseCounts();
+  showToast(`${c.client}の配車を確定しました。ドライバーへ指示を送信しました。`, 'success');
+}
+
+function closeModal(id) {
+  document.getElementById(id).classList.remove('open');
+}
+document.querySelectorAll('.modal-overlay').forEach(mo => {
+  mo.addEventListener('click', e => { if (e.target === mo) mo.classList.remove('open'); });
+});
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+//  動態マップ描画
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+function drawLiveMap(i) {
+  const mapEl = document.getElementById(`livemap-${i}`);
+  if (!mapEl) return;
+  const W = mapEl.offsetWidth || 600;
+  const H = mapEl.offsetHeight || 220;
+
+  // ブロック（建物風）描画
+  const blocksEl = document.getElementById(`lmblocks-${i}`);
+  if (blocksEl) {
+    const blocks = [
+      {x:5,y:5,w:14,h:18},{x:22,y:8,w:10,h:12},{x:38,y:4,w:16,h:20},
+      {x:58,y:10,w:12,h:14},{x:74,y:6,w:8,h:16},{x:84,y:12,w:10,h:10},
+      {x:5,y:38,w:12,h:16},{x:24,y:36,w:14,h:18},{x:44,y:40,w:10,h:12},
+      {x:60,y:36,w:16,h:20},{x:80,y:38,w:12,h:14},
+      {x:5,y:65,w:18,h:16},{x:30,y:68,w:12,h:12},{x:48,y:64,w:14,h:18},
+      {x:66,y:66,w:10,h:14},{x:80,y:70,w:14,h:12},
+    ];
+    blocksEl.innerHTML = blocks.map(b =>
+      `<div class="map-block" style="left:${b.x}%;top:${b.y}%;width:${b.w/100*W/W*100}%;height:${b.h}%"></div>`
+    ).join('');
+  }
+
+  // SVGルート（折れ線：S → 中間点1 → 中間点2 → G）
+  const svg = document.getElementById(`routesvg-${i}`);
+  if (!svg) return;
+  // パーセント座標
+  const pts = [ [14,72], [32,58], [52,44], [68,36], [82,34] ];
+  const pxPts = pts.map(([px,py]) => [px/100*W, py/100*H]);
+  const truckPct = processedCases[i]?.progressPct || 68;
+  // ルート全体をポリラインで
+  const allD = pxPts.map((p,j) => (j===0?`M`:' L') + p[0]+','+p[1]).join('');
+  // 走行済み：最初の3点まで
+  const doneIdx = Math.floor(truckPct / 25); // 0-4
+  const donePts = pxPts.slice(0, Math.min(doneIdx+2, pxPts.length));
+  const doneD = donePts.map((p,j) => (j===0?`M`:' L') + p[0]+','+p[1]).join('');
+  const remainPts = pxPts.slice(Math.max(0,doneIdx+1));
+  const remainD = remainPts.length>1 ? remainPts.map((p,j) => (j===0?`M`:' L') + p[0]+','+p[1]).join('') : '';
+
+  svg.innerHTML = `
+    <defs>
+      <filter id="shadow-${i}"><feDropShadow dx="0" dy="1" stdDeviation="2" flood-color="rgba(0,0,0,.2)"/></filter>
+    </defs>
+    <!-- 残りルート（破線） -->
+    ${remainD ? `<path d="${remainD}" fill="none" stroke="#94a3b8" stroke-width="3" stroke-dasharray="6,4" stroke-linecap="round"/>` : ''}
+    <!-- 走行済みルート -->
+    <path d="${doneD}" fill="none" stroke="#3BB888" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" filter="url(#shadow-${i})"/>
+  `;
+}
+
+// 速度のリアルタイム更新シミュレーション
+let liveTimers = [];
+function startLiveUpdates(i) {
+  liveTimers.forEach(t => clearInterval(t));
+  liveTimers = [];
+  const speeds = [58,62,65,60,67,63,61,64];
+  let si = 0;
+  const t = setInterval(() => {
+    const el = document.getElementById(`speed-${i}`);
+    if (!el) { clearInterval(t); return; }
+    si = (si+1) % speeds.length;
+    el.innerHTML = speeds[si] + '<span style="font-size:9px;font-weight:400"> km/h</span>';
+  }, 2200);
+  liveTimers.push(t);
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+//  ユーティリティ
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+function updatePhaseCounts() {
+  const uEl = document.querySelector('.phase-tab.unprocessed .tab-count');
+  const pEl = document.querySelector('.phase-tab.processing .tab-count');
+  const dEl = document.querySelector('.phase-tab.processed .tab-count');
+  uEl.textContent = unprocessedCases.length;
+  pEl.textContent = processingCases.length;
+  dEl.textContent = processedCases.length;
+  uEl.dataset.zero = unprocessedCases.length === 0 ? 'true' : 'false';
+  pEl.dataset.zero = processingCases.length  === 0 ? 'true' : 'false';
+  // サイドバーバッジ
+  document.querySelector('.nav-badge').textContent = unprocessedCases.length;
+}
+
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+//  新規登録モーダル
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+let currentRegTab = 'rec';
+let recState = 'idle'; // idle | recording | done
+let recTimerInterval = null;
+let recSeconds = 0;
+let recWaveInterval = null;
+let mediaRecorder = null;
+let recExtracted = null;
+let uploadExtracted = null;
+
+function openRegisterModal() {
+  document.getElementById('register-modal').classList.add('open');
+  switchRegTab('rec');
+  resetRec();
+  resetUpload();
+  clearManualForm();
+}
+
+function switchRegTab(tab) {
+  currentRegTab = tab;
+  document.querySelectorAll('.reg-tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.reg-panel').forEach(p => p.classList.remove('active'));
+  document.getElementById('regtab-' + tab).classList.add('active');
+  document.getElementById('regpanel-' + tab).classList.add('active');
+}
+
+// ── 録音 ──
+function toggleRecording() {
+  if (recState === 'idle') startRec();
+  else if (recState === 'recording') stopRec();
+}
+
+async function startRec() {
+  recState = 'recording';
+  recSeconds = 0;
+  const btn = document.getElementById('rec-btn');
+  btn.classList.remove('idle'); btn.classList.add('recording');
+  btn.innerHTML = '<svg width="22" height="22" viewBox="0 0 24 24" fill="#fff"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>';
+  document.getElementById('rec-status').textContent = '録音中... マイクボタンを押すと停止します';
+  document.getElementById('rec-area').classList.add('recording');
+  document.getElementById('rec-result').style.display = 'none';
+
+  // タイマー
+  recTimerInterval = setInterval(() => {
+    recSeconds++;
+    const m = String(Math.floor(recSeconds/60)).padStart(2,'0');
+    const s = String(recSeconds%60).padStart(2,'0');
+    const el = document.getElementById('rec-timer');
+    el.textContent = m+':'+s;
+    el.classList.add('running');
+  }, 1000);
+
+  // 波形アニメーション
+  const bars = document.querySelectorAll('#rec-waveform .rec-bar');
+  recWaveInterval = setInterval(() => {
+    bars.forEach(b => {
+      const h = 6 + Math.random()*20;
+      b.style.height = h+'px';
+      b.classList.add('active');
+    });
+  }, 120);
+
+  // マイクAPI
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({audio:true});
+    mediaRecorder = new MediaRecorder(stream);
+    mediaRecorder.start();
+  } catch(e) {
+    // マイク許可なしでもデモとして続行
+  }
+}
+
+function stopRec() {
+  recState = 'done';
+  clearInterval(recTimerInterval);
+  clearInterval(recWaveInterval);
+
+  if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+    mediaRecorder.stop();
+    mediaRecorder.stream.getTracks().forEach(t => t.stop());
+  }
+
+  const btn = document.getElementById('rec-btn');
+  btn.classList.remove('recording'); btn.classList.add('idle');
+  btn.innerHTML = '<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>';
+  document.getElementById('rec-timer').classList.remove('running');
+  document.getElementById('rec-area').classList.remove('recording');
+  document.getElementById('rec-status').textContent = '録音完了 — AI解析中...';
+  document.querySelectorAll('#rec-waveform .rec-bar').forEach(b => { b.style.height='8px'; b.classList.remove('active'); });
+
+  // AI解析（デモ文字起こし→Claude API）
+  runAiAnalysis('rec');
+}
+
+function resetRec() {
+  recState = 'idle';
+  clearInterval(recTimerInterval);
+  clearInterval(recWaveInterval);
+  recExtracted = null;
+  const btn = document.getElementById('rec-btn');
+  if(btn){ btn.className='rec-btn idle'; btn.innerHTML='<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>'; }
+  const timer = document.getElementById('rec-timer');
+  if(timer){ timer.textContent='00:00'; timer.classList.remove('running'); }
+  const area = document.getElementById('rec-area');
+  if(area) area.classList.remove('recording');
+  const status = document.getElementById('rec-status');
+  if(status) status.textContent='マイクボタンを押して録音を開始してください';
+  const result = document.getElementById('rec-result');
+  if(result) result.style.display='none';
+}
+
+// ── アップロード ──
+function handleFileSelect(e) {
+  const file = e.target.files[0];
+  if(file) processUploadFile(file);
+}
+function handleFileDrop(e) {
+  e.preventDefault();
+  document.getElementById('upload-drop').classList.remove('dragover');
+  const file = e.dataTransfer.files[0];
+  if(file) processUploadFile(file);
+}
+function processUploadFile(file) {
+  document.getElementById('upload-drop').style.display='none';
+  const preview = document.getElementById('upload-file-preview');
+  preview.style.display='block';
+  document.getElementById('upload-filename').textContent = file.name;
+  document.getElementById('upload-filesize').textContent = (file.size/1024/1024).toFixed(2)+' MB';
+  document.getElementById('upload-result').style.display='none';
+
+  // プログレスアニメーション
+  let pct = 0;
+  const bar = document.getElementById('upload-bar');
+  const status = document.getElementById('upload-status');
+  status.textContent = 'アップロード中...';
+  const prog = setInterval(() => {
+    pct += Math.random()*18;
+    if(pct>=100){ pct=100; clearInterval(prog); status.textContent='✅ アップロード完了 — AI解析中...'; runAiAnalysis('upload'); }
+    bar.style.width = pct+'%';
+  }, 180);
+}
+function resetUpload() {
+  uploadExtracted = null;
+  const drop = document.getElementById('upload-drop');
+  if(drop) drop.style.display='';
+  const preview = document.getElementById('upload-file-preview');
+  if(preview) preview.style.display='none';
+  const result = document.getElementById('upload-result');
+  if(result) result.style.display='none';
+  const inp = document.getElementById('upload-input');
+  if(inp) inp.value='';
+}
+
+// ── AI解析（録音・アップロード共通） ──
+const demoTranscript = 'もしもし、株式会社〇〇商事の山田と申します。えー、来週の木曜日、5月25日の午前中に、埼玉県川口市から神奈川県横浜市まで、パレット8枚、重量800キロの常温品をお願いしたいんですが。時間は厳守でお願いしたくて、着地のバースは予約済みです。4トンウィングで対応できますか？';
+
+async function runAiAnalysis(mode) {
+  const transcriptEl = document.getElementById(mode+'-transcript');
+  const gridEl = document.getElementById(mode+'-ai-grid');
+  const resultEl = document.getElementById(mode+'-result');
+  const badgeEl = mode==='rec' ? document.getElementById('rec-confidence-badge') : null;
+
+  if(resultEl) resultEl.style.display='block';
+  if(transcriptEl) transcriptEl.textContent='';
+
+  // タイピングアニメーション
+  let idx=0;
+  await new Promise(resolve => {
+    const typer = setInterval(() => {
+      if(!transcriptEl){ clearInterval(typer); resolve(); return; }
+      transcriptEl.textContent += demoTranscript[idx];
+      idx++;
+      if(idx>=demoTranscript.length){ clearInterval(typer); resolve(); }
+    }, 28);
+  });
+
+  if(gridEl) gridEl.innerHTML='<div style="grid-column:1/-1;text-align:center;padding:12px;color:var(--text-muted);font-size:12px">🤖 Claude AIが解析中...</div>';
+
+  // Claude API呼び出し
+  let extracted = null;
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({
+        model:'claude-sonnet-4-20250514',
+        max_tokens:600,
+        messages:[{ role:'user', content:
+          '以下の電話文字起こしから配送案件情報をJSONのみで抽出してください（説明文・コードブロック不要）。キー: client, from, to, goods, weight, deadline, vehicle, conditions。\n\n'+demoTranscript
+        }]
+      })
+    });
+    const data = await res.json();
+    const text = data.content.map(i=>i.text||'').join('').replace(/```json|```/g,'').trim();
+    extracted = JSON.parse(text);
+  } catch(e) {
+    // フォールバック
+    extracted = { client:'株式会社〇〇商事', from:'埼玉県川口市', to:'神奈川県横浜市', goods:'パレット 8枚', weight:'800kg', deadline:'05/25 AM指定', vehicle:'4tウィング', conditions:'時間厳守 / バース予約済み' };
+  }
+
+  if(mode==='rec'){ recExtracted=extracted; if(badgeEl) badgeEl.textContent='高信頼度'; }
+  else { uploadExtracted=extracted; }
+
+  if(gridEl) {
+    const labels = {client:'取引先',from:'発地',to:'着地',goods:'荷物',weight:'重量',deadline:'希望納期',vehicle:'車格',conditions:'条件・備考'};
+    gridEl.innerHTML = Object.entries(labels).map(([k,l]) =>
+      `<div class="ai-extract-item"><div class="ai-extract-label">${l}</div><div class="ai-extract-val">${extracted[k]||'—'}</div></div>`
+    ).join('');
+  }
+
+  const statusEl = mode==='rec'
+    ? document.getElementById('rec-status')
+    : document.getElementById('upload-status');
+  if(statusEl) statusEl.textContent = '✅ AI解析完了 — 内容を確認して「案件一覧へ登録」を押してください';
+}
+
+// ── 手入力フォームリセット ──
+function clearManualForm() {
+  ['f-client','f-phone','f-from','f-to','f-goods','f-weight','f-deadline','f-note'].forEach(id => {
+    const el = document.getElementById(id);
+    if(el) el.value='';
+  });
+  const sel1 = document.getElementById('f-vehicle');
+  if(sel1) sel1.selectedIndex=0;
+  const sel2 = document.getElementById('f-channel');
+  if(sel2) sel2.selectedIndex=0;
+}
+
+// ── 登録実行 ──
+function submitNewCase() {
+  let caseData = null;
+
+  if(currentRegTab==='rec') {
+    const ext = recExtracted;
+    if(!ext){ showToast('録音してAI解析を完了してください', 'warn'); return; }
+    caseData = { client:ext.client||'不明', from:ext.from||'—', to:ext.to||'—', goods:(ext.goods||'')+(ext.weight?' / '+ext.weight:''), deadline:ext.deadline||'未定', ch:'tel' };
+  } else if(currentRegTab==='upload') {
+    const ext = uploadExtracted;
+    if(!ext){ showToast('音声ファイルをアップロードしてAI解析を完了してください', 'warn'); return; }
+    caseData = { client:ext.client||'不明', from:ext.from||'—', to:ext.to||'—', goods:(ext.goods||'')+(ext.weight?' / '+ext.weight:''), deadline:ext.deadline||'未定', ch:'tel' };
+  } else {
+    const client = document.getElementById('f-client').value.trim();
+    const from   = document.getElementById('f-from').value.trim();
+    const to     = document.getElementById('f-to').value.trim();
+    const deadline = document.getElementById('f-deadline').value.trim();
+    if(!client||!from||!to||!deadline){ showToast('取引先名・発地・着地・希望納期は必須です', 'warn'); return; }
+    const goods = document.getElementById('f-goods').value.trim();
+    const weight = document.getElementById('f-weight').value.trim();
+    const ch = document.getElementById('f-channel').value;
+    caseData = { client, from, to, goods: goods+(weight?' / '+weight:''), deadline, ch };
+  }
+
+  // 案件IDを生成して未処理リストに追加
+  const now = new Date();
+  const newId = now.getFullYear().toString().slice(2)
+    + String(now.getMonth()+1).padStart(2,'0')
+    + String(now.getDate()).padStart(2,'0')
+    + String(Math.floor(Math.random()*900)+100);
+
+  unprocessedCases.push({
+    id: newId,
+    status: '未解析',
+    client: caseData.client,
+    from: caseData.from,
+    to: caseData.to,
+    goods: caseData.goods || '—',
+    deadline: caseData.deadline,
+    ch: caseData.ch || 'tel',
+    time: String(now.getHours()).padStart(2,'0')+':'+String(now.getMinutes()).padStart(2,'0'),
+    analyzed: false,
+    vehicles: []
+  });
+
+  closeModal('register-modal');
+  switchPhase('unprocessed');
+  renderUnprocessedList();
+  renderUnprocessedDetail(unprocessedCases.length-1);
+  // 最後のカードを選択
+  setTimeout(() => {
+    const cards = document.querySelectorAll('#unprocessed-list .case-card');
+    if(cards.length) { cards[cards.length-1].click(); cards[cards.length-1].scrollIntoView({behavior:'smooth',block:'nearest'}); }
+  }, 50);
+  updatePhaseCounts();
+  showToast('案件「'+caseData.client+'」を未処理リストに登録しました', 'success');
+}
+
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+//  運賃適正判定
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+// 距離の簡易推定（発地・着地キーワードベース）
+function estimateDistance(from, to) {
+  const dist = {
+    '川口': {'横浜':35,'大田':30,'品川':28,'千葉':55,'さいたま':18,'名古屋':380,'大阪':550,'静岡':180},
+    '船橋': {'大田':42,'品川':45,'横浜':60,'川口':55,'名古屋':350,'大阪':520},
+    'つくば': {'名古屋':410,'横浜':120,'大田':70,'品川':72},
+    '渋谷': {'大阪':540,'名古屋':380,'横浜':30,'川口':28},
+    '品川': {'さいたま':28,'横浜':22,'川口':26},
+    '江東': {'千葉':45,'横浜':55,'川口':35},
+  };
+  for (const [f, targets] of Object.entries(dist)) {
+    if (from.includes(f)) {
+      for (const [t, d] of Object.entries(targets)) {
+        if (to.includes(t)) return d;
+      }
+    }
+  }
+  // デフォルト推定：都道府県間距離
+  if (from.includes('東京') && to.includes('大阪')) return 540;
+  if (from.includes('東京') && to.includes('名古屋')) return 380;
+  if (from.includes('東京') || from.includes('埼玉') || from.includes('千葉') || from.includes('神奈川')) {
+    if (to.includes('東京') || to.includes('埼玉') || to.includes('千葉') || to.includes('神奈川')) return 40;
+    if (to.includes('名古屋') || to.includes('愛知')) return 380;
+    if (to.includes('大阪') || to.includes('京都')) return 540;
+    if (to.includes('静岡')) return 180;
+  }
+  return 80; // fallback
+}
+
+// 車格ごとの基礎パラメータ
+function getVehicleParams(vehicle) {
+  const v = vehicle || '2tトラック';
+  if (v.includes('軽')) return { fuelKm:12, fuelCost:175, highwayPer100:600,  driverHourly:2200, depreciationDay:2500, name:'軽バン' };
+  if (v.includes('2t'))  return { fuelKm:8,  fuelCost:175, highwayPer100:1800, driverHourly:2800, depreciationDay:4000, name:'2tトラック' };
+  if (v.includes('4t'))  return { fuelKm:5,  fuelCost:175, highwayPer100:3200, driverHourly:3200, depreciationDay:6000, name:'4tウィング' };
+  if (v.includes('10t')) return { fuelKm:3.5,fuelCost:175, highwayPer100:5500, driverHourly:3800, depreciationDay:9000, name:'10tトラック' };
+  return { fuelKm:8, fuelCost:175, highwayPer100:1800, driverHourly:2800, depreciationDay:4000, name:'2tトラック' };
+}
+
+async function calcFare(caseObj) {
+  const dist = estimateDistance(caseObj.from, caseObj.to);
+  const vp   = getVehicleParams(caseObj.aiResult?.vehicle || caseObj.vehicle || '2tトラック');
+  const hours = Math.max(1, (dist / 60) + 1.5); // 平均60km/h + 積降し1.5h
+
+  // コスト積み上げ
+  const fuel        = Math.round(dist / vp.fuelKm * vp.fuelCost);
+  const highway     = Math.round(dist * vp.highwayPer100 / 100);
+  const driver      = Math.round(hours * vp.driverHourly);
+  const depreciation= Math.round(vp.depreciationDay * Math.max(1, dist/200));
+  const overhead    = Math.round((fuel + highway + driver + depreciation) * 0.15);
+  const totalCost   = fuel + highway + driver + depreciation + overhead;
+  const recommend   = Math.round(totalCost * 1.28 / 1000) * 1000; // 粗利28%
+  const min         = Math.round(totalCost * 1.10 / 1000) * 1000;
+  const max         = Math.round(totalCost * 1.50 / 1000) * 1000;
+  const avg         = Math.round((min + max) / 2 / 500) * 500;
+
+  const costMax = Math.max(fuel, highway, driver, depreciation, overhead);
+  const costs = [
+    { label:'燃料代',         val:fuel,         pct:Math.round(fuel/costMax*100),         color:'#3BB888' },
+    { label:'高速代',         val:highway,       pct:Math.round(highway/costMax*100),       color:'#60a5fa' },
+    { label:'ドライバー人件費',val:driver,        pct:Math.round(driver/costMax*100),        color:'#f97316' },
+    { label:'車両コスト',     val:depreciation,  pct:Math.round(depreciation/costMax*100),  color:'#a78bfa' },
+    { label:'諸経費（15%）', val:overhead,       pct:Math.round(overhead/costMax*100),       color:'#94a3b8' },
+  ];
+
+  // Claude API で根拠・提案コメントを生成
+  let reason = '';
+  let proposals = [];
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({
+        model:'claude-sonnet-4-20250514',
+        max_tokens:500,
+        messages:[{ role:'user', content:
+          `以下の配送案件について運賃判定のJSON（説明文・コードブロック不要）を返してください。\n`+
+          `案件：${caseObj.from}→${caseObj.to} / 距離${dist}km / 車格:${vp.name} / 荷物:${caseObj.goods}\n`+
+          `原価合計:¥${totalCost.toLocaleString()} / 推奨価格:¥${recommend.toLocaleString()}\n`+
+          `JSONキー: reason(string,60字以内), proposals(array of {tag,tagClass,detail,price})\n`+
+          `tagClassは推奨="tag-recommend", 代替="tag-alt", 最低="tag-min" の3つ。priceはNumber。`
+        }]
+      })
+    });
+    const data = await res.json();
+    const text = data.content.map(b=>b.text||'').join('').replace(/```json|```/g,'').trim();
+    const parsed = JSON.parse(text);
+    reason = parsed.reason || '';
+    proposals = parsed.proposals || [];
+  } catch(e) { /* フォールバック */ }
+
+  if (!reason) reason = `距離${dist}kmの${vp.name}案件。燃料代¥${fuel.toLocaleString()}+高速代¥${highway.toLocaleString()}+人件費¥${driver.toLocaleString()}を積み上げ、市場相場と照合した結果です。`;
+  if (!proposals.length) proposals = [
+    { tag:'推奨', tagClass:'tag-recommend', detail:`粗利28%確保・市場平均値（交渉余地あり）`, price: recommend },
+    { tag:'代替', tagClass:'tag-alt',       detail:`強気設定・付加価値（時間厳守・品質）を訴求`, price: max },
+    { tag:'最低', tagClass:'tag-min',       detail:`コスト+10%・継続取引優遇ライン`, price: min },
+  ];
+
+  // ステータス判定
+  let statusClass, statusIcon, statusLabel;
+  if (recommend >= avg * 0.95) { statusClass='ok';   statusIcon='✅'; statusLabel='成約 OK'; }
+  else if (recommend >= min)    { statusClass='warn'; statusIcon='⚠️'; statusLabel='要交渉'; }
+  else                          { statusClass='ng';   statusIcon='❌'; statusLabel='採算NG'; }
+
+  return { recommend, min, max, avg, totalCost, costs, reason, proposals, statusClass, statusIcon, statusLabel };
+}
+
+function selectFareProposal(el) {
+  el.closest('.fare-proposals').querySelectorAll('.fare-proposal').forEach(p => p.classList.remove('selected'));
+  el.classList.add('selected');
+}
+
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+//  配車計画ページ
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+let currentDispatchTab = 'planning';
+let currentDispatchSubtab = 'schedule';
+
+function switchDispatchTab(tab) {
+  currentDispatchTab = tab;
+  document.querySelectorAll('.dispatch-tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('dtab-' + tab).classList.add('active');
+  renderDispatchContent();
+}
+
+function switchDispatchSubtab(sub) {
+  currentDispatchSubtab = sub;
+  document.querySelectorAll('.dispatch-subtab').forEach(t => t.classList.remove('active'));
+  document.getElementById('dsubtab-' + sub).classList.add('active');
+  document.getElementById('dispatch-schedule').style.display = sub === 'schedule' ? 'flex' : 'none';
+  document.getElementById('dispatch-dotai').style.display    = sub === 'dotai'    ? 'flex' : 'none';
+  if (sub === 'schedule') renderSchedule();
+  else renderDotai();
+}
+
+// 時刻 → 0〜24 の割合(%)
+function timeToPercent(timeStr) {
+  const [h, m] = timeStr.split(':').map(Number);
+  return ((h + m / 60) / 24) * 100;
+}
+function durationToPercent(startStr, endStr) {
+  const [sh, sm] = startStr.split(':').map(Number);
+  const [eh, em] = endStr.split(':').map(Number);
+  return (((eh + em / 60) - (sh + sm / 60)) / 24) * 100;
+}
+
+// ── スケジュールデータ（計画中 / 確定済み） ──
+const scheduleData = {
+  planning: [
+    { driver:'山田 一郎', vehicle:'車両1245', status:'運行中',
+      blocks:[
+        { start:'07:00', end:'09:20', label:'積込・出発',   color:'#64748b', client:'株式会社○○商事', from:'埼玉県川口市',  to:'出発準備',      goods:'パレット/800kg', deadline:'-' },
+        { start:'09:20', end:'12:00', label:'株式会社○○商事', color:'#1a7a5e', client:'株式会社○○商事', from:'埼玉県川口市',  to:'神奈川県横浜市', goods:'パレット/800kg/常温', deadline:'05/25 AM指定' },
+        { start:'13:00', end:'15:30', label:'△△食品',       color:'#0D4A3A', client:'△△食品株式会社', from:'神奈川県横浜市',to:'東京都品川区',   goods:'ケース/300kg/冷蔵',  deadline:'15:00指定' },
+      ]
+    },
+    { driver:'鈴木 次郎', vehicle:'車両1123', status:'待機中',
+      blocks:[
+        { start:'10:00', end:'13:00', label:'南関東物流',    color:'#1a7a5e', client:'南関東物流株式会社', from:'神奈川県川崎市',to:'静岡県静岡市',   goods:'電子部品/400kg',  deadline:'夕方' },
+        { start:'14:30', end:'17:00', label:'待機予定',      color:'#94a3b8', client:'—', from:'—', to:'—', goods:'—', deadline:'—' },
+      ]
+    },
+    { driver:'渡辺 六郎', vehicle:'車両0552', status:'運行中',
+      blocks:[
+        { start:'18:00', end:'22:00', label:'北海道産直食品', color:'#0D4A3A', client:'北海道産直食品', from:'東京都江東区',  to:'千葉県千葉市',   goods:'生鮮/600kg/冷蔵', deadline:'夜' },
+      ]
+    },
+  ],
+  confirmed: [
+    { driver:'山田 一郎', vehicle:'車両1245', status:'完了',
+      blocks:[
+        { start:'09:22', end:'11:15', label:'株式会社○○商事', color:'#3BB888', client:'株式会社○○商事', from:'埼玉県川口市',  to:'神奈川県横浜市', goods:'パレット/800kg/常温', deadline:'完了' },
+      ]
+    },
+    { driver:'田中 四郎', vehicle:'車両0887', status:'完了',
+      blocks:[
+        { start:'11:00', end:'15:20', label:'△△食品',         color:'#3BB888', client:'△△食品株式会社', from:'千葉県船橋市',  to:'東京都大田区',   goods:'ケース/500kg/冷蔵',  deadline:'完了' },
+      ]
+    },
+    { driver:'鈴木 次郎', vehicle:'車両1123', status:'完了',
+      blocks:[
+        { start:'14:00', end:'17:45', label:'XYZ物産',          color:'#3BB888', client:'XYZ物産株式会社', from:'東京都品川区',  to:'埼玉県さいたま市', goods:'事務用品/200kg',    deadline:'完了' },
+      ]
+    },
+  ]
+};
+
+function renderSchedule() {
+  const wrap = document.getElementById('schedule-wrap-inner');
+  if (!wrap) return;
+  const data = scheduleData[currentDispatchTab];
+
+  // 現在時刻ライン位置
+  const now = new Date();
+  const nowPct = ((now.getHours() + now.getMinutes() / 60) / 24) * 100;
+  const nowStr = String(now.getHours()).padStart(2,'0') + ':' + String(now.getMinutes()).padStart(2,'0');
+
+  // 時間軸ヘッダー
+  const hours = Array.from({length:25},(_,i) => i);
+  const headerHtml = `
+    <div style="display:grid;grid-template-columns:140px 1fr;margin-bottom:4px">
+      <div></div>
+      <div style="position:relative;height:18px">
+        ${hours.map(h => `
+          <div style="position:absolute;left:${(h/24)*100}%;transform:translateX(-50%);font-size:9px;font-weight:600;color:var(--text-muted);font-family:'Inter',sans-serif">
+            ${h===0||h===24?'':String(h).padStart(2,'0')}
+          </div>`).join('')}
+      </div>
+    </div>`;
+
+  const rowsHtml = data.map(row => {
+    const blocksHtml = row.blocks.map(b => {
+      const left = timeToPercent(b.start);
+      const width = durationToPercent(b.start, b.end);
+      return `
+        <div class="schedule-block" style="left:${left}%;width:${width}%;background:${b.color}">
+          <span class="schedule-block-label">${b.label}</span>
+          <div class="sched-tip">
+            <div style="font-weight:700;margin-bottom:5px;color:#e5e7eb">${b.client}</div>
+            <div>🕐 ${b.start} → ${b.end}</div>
+            <div>📍 ${b.from} → ${b.to}</div>
+            <div>📦 ${b.goods}</div>
+            <div>⏰ 納期：${b.deadline}</div>
+          </div>
+        </div>`;
+    }).join('');
+
+    const statusClass = row.status === '運行中' ? 'running' : row.status === '完了' ? 'running' : 'waiting';
+    const statusColor = row.status === '運行中' ? 'var(--green)' : row.status === '完了' ? '#3BB888' : 'var(--text-muted)';
+
+    return `
+      <div class="schedule-row" style="margin-bottom:8px">
+        <div class="schedule-driver-cell">
+          <div class="schedule-driver-name">${row.driver}</div>
+          <div class="schedule-driver-vehicle">${row.vehicle}</div>
+          <div class="schedule-driver-status" style="color:${statusColor}">● ${row.status}</div>
+        </div>
+        <div class="schedule-bar-wrap">
+          ${nowPct > 0 && nowPct < 100 ? `
+            <div class="schedule-now-line" style="left:${nowPct}%">
+              <div class="schedule-now-label">${nowStr}</div>
+            </div>` : ''}
+          ${blocksHtml}
+        </div>
+      </div>`;
+  }).join('');
+
+  wrap.innerHTML = `
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+      <div style="font-size:13px;font-weight:700;color:var(--text-primary)">
+        📅 本日の運行スケジュール
+        <span style="font-size:11px;font-weight:400;color:var(--text-muted);margin-left:8px">${new Date().toLocaleDateString('ja-JP',{month:'long',day:'numeric',weekday:'short'})}</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:12px;font-size:11px;color:var(--text-muted)">
+        <span style="display:flex;align-items:center;gap:4px"><span style="width:12px;height:12px;background:#1a7a5e;border-radius:3px;display:inline-block"></span>運行中</span>
+        <span style="display:flex;align-items:center;gap:4px"><span style="width:12px;height:12px;background:#3BB888;border-radius:3px;display:inline-block"></span>完了</span>
+        <span style="display:flex;align-items:center;gap:4px"><span style="width:12px;height:12px;background:#94a3b8;border-radius:3px;display:inline-block"></span>待機</span>
+        <span style="color:var(--red);font-weight:600">― 現在時刻</span>
+      </div>
+    </div>
+    ${headerHtml}
+    ${rowsHtml}
+  `;
+}
+
+function renderDotai() {
+  const wrap = document.getElementById('dotai-wrap-inner');
+  if (!wrap) return;
+  const data = scheduleData[currentDispatchTab];
+
+  // 動態カードの生成
+  const cardsHtml = data.map((row, ri) => {
+    const pct = currentDispatchTab === 'confirmed' ? 100 : (ri === 0 ? 68 : ri === 1 ? 42 : 85);
+    const speed = currentDispatchTab === 'confirmed' ? '—' : (ri === 0 ? 62 : ri === 1 ? 74 : 58);
+    const remain = currentDispatchTab === 'confirmed' ? '0' : (ri === 0 ? 12 : ri === 1 ? 24 : 4);
+    const eta = currentDispatchTab === 'confirmed' ? '完了' : (ri === 0 ? '11:15' : ri === 1 ? '13:50' : '10:58');
+    const statusColor = row.status === '運行中' ? '#22c55e' : row.status === '完了' ? '#3BB888' : '#94a3b8';
+    const activeBlock = row.blocks.find(b => b.color !== '#94a3b8') || row.blocks[0];
+
+    // SVGルートの折れ線（各カードで微妙に違う角度）
+    const offsets = [{sx:15,sy:75,ex:85,ey:35},{sx:10,sy:65,ex:80,ey:40},{sx:20,sy:70,ex:85,ey:30}];
+    const o = offsets[ri % 3];
+    // トラック位置（進捗率から計算）
+    const tx = o.sx + (o.ex - o.sx) * pct / 100;
+    const ty = o.sy + (o.ey - o.sy) * pct / 100;
+    const donePx = `M ${o.sx}% ${o.sy}% L ${tx}% ${ty}%`;
+    const remainPx = `M ${tx}% ${ty}% L ${o.ex}% ${o.ey}%`;
+
+    return `
+      <div class="dotai-card">
+        <div class="dotai-card-header">
+          <div class="dotai-live-dot" style="background:${statusColor}"></div>
+          <div class="dotai-card-title">${row.driver}</div>
+          <span style="font-size:10px;font-family:'Inter',sans-serif;color:var(--text-muted);margin-left:2px">${row.vehicle}</span>
+          <span style="margin-left:auto;font-size:10px;font-weight:600;color:${statusColor}">${row.status}</span>
+        </div>
+        <div class="dotai-mini-map">
+          <div class="dotai-mini-grid"></div>
+          <!-- SVGルート -->
+          <svg style="position:absolute;inset:0;width:100%;height:100%;overflow:visible">
+            <line x1="${o.sx}%" y1="${o.sy}%" x2="${o.ex}%" y2="${o.ey}%"
+              stroke="#cbd5e1" stroke-width="3" stroke-dasharray="5,3" stroke-linecap="round"/>
+            <line x1="${o.sx}%" y1="${o.sy}%" x2="${tx}%" y2="${ty}%"
+              stroke="#3BB888" stroke-width="3.5" stroke-linecap="round"/>
+          </svg>
+          <!-- 出発ピン -->
+          <div style="position:absolute;left:${o.sx}%;top:${o.sy}%;transform:translate(-50%,-100%)">
+            <div style="width:18px;height:18px;background:#475569;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:#fff">S</div>
+          </div>
+          <!-- 到着ピン -->
+          <div style="position:absolute;left:${o.ex}%;top:${o.ey}%;transform:translate(-50%,-100%)">
+            <div style="width:18px;height:18px;background:var(--red);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:#fff">G</div>
+          </div>
+          <!-- トラック現在地 -->
+          <div style="position:absolute;left:${tx}%;top:${ty}%;transform:translate(-50%,-50%);z-index:10">
+            <div style="width:28px;height:28px;background:var(--sidebar-bg);border-radius:50%;display:flex;align-items:center;justify-content:center;box-shadow:0 0 0 4px rgba(13,74,58,.2),0 2px 8px rgba(0,0,0,.3)">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#6DD5A8" stroke-width="2"><rect x="1" y="3" width="15" height="13" rx="2"/><path d="M16 8h4l3 4v3h-7V8z"/><circle cx="5.5" cy="18.5" r="2"/><circle cx="18.5" cy="18.5" r="2"/></svg>
+            </div>
+          </div>
+          <!-- GPSバッジ -->
+          <div style="position:absolute;top:6px;right:8px;font-size:9px;font-weight:700;background:rgba(13,74,58,.85);color:#6DD5A8;padding:2px 6px;border-radius:4px">GPS</div>
+          <!-- 現在地情報オーバーレイ -->
+          <div style="position:absolute;top:6px;left:8px;background:rgba(255,255,255,.92);border-radius:6px;padding:5px 8px;font-size:10px">
+            <div style="font-weight:700;color:var(--sidebar-bg);font-family:'Inter',sans-serif">${speed === '—' ? '完了' : speed + ' km/h'}</div>
+            <div style="color:var(--text-muted);font-size:9px">現在速度</div>
+          </div>
+        </div>
+        <div class="dotai-card-body">
+          <div style="font-size:11px;color:var(--text-secondary);margin-bottom:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
+            📍 ${activeBlock.from} → ${activeBlock.to}
+          </div>
+          <!-- 進捗バー -->
+          <div style="display:flex;justify-content:space-between;font-size:9px;color:var(--text-muted);margin-bottom:3px">
+            <span>出発地</span><span style="font-weight:700;color:var(--sidebar-bg)">${pct}%</span><span>目的地</span>
+          </div>
+          <div style="height:5px;background:#f3f4f6;border-radius:3px;overflow:hidden;margin-bottom:8px">
+            <div style="height:100%;width:${pct}%;background:linear-gradient(90deg,#3BB888,#0D4A3A);border-radius:3px"></div>
+          </div>
+          <div class="dotai-stat-row">
+            <div class="dotai-stat"><div class="dotai-stat-label">残距離</div><div class="dotai-stat-val">${remain} km</div></div>
+            <div class="dotai-stat"><div class="dotai-stat-label">到着予定</div><div class="dotai-stat-val">${eta}</div></div>
+            <div class="dotai-stat"><div class="dotai-stat-label">遅延</div><div class="dotai-stat-val" style="color:var(--green)">なし</div></div>
+          </div>
+        </div>
+      </div>`;
+  }).join('');
+
+  wrap.innerHTML = `
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
+      <div style="font-size:13px;font-weight:700;color:var(--text-primary)">
+        📡 リアルタイム動態管理
+        <span style="font-size:11px;font-weight:400;color:var(--text-muted);margin-left:8px">${data.length}台追跡中</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:5px;font-size:10px;color:#22c55e;font-weight:600">
+        <span style="width:7px;height:7px;border-radius:50%;background:#22c55e;display:inline-block;animation:pulse 1.5s infinite"></span>
+        LIVE 更新中
+      </div>
+    </div>
+    <div class="dotai-grid">${cardsHtml}</div>
+  `;
+}
+
+function renderDispatchContent() {
+  if (currentDispatchSubtab === 'schedule') renderSchedule();
+  else renderDotai();
+}
+
+function showToast(msg, type='success') {
+  const container = document.getElementById('toast-container');
+  const toast = document.createElement('div');
+  toast.className = `toast toast-${type}`;
+  toast.innerHTML = `<span class="toast-icon">${type==='success'?'✓':'!'}</span> ${msg}`;
+  container.appendChild(toast);
+  setTimeout(() => toast.remove(), 3500);
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+//  初期化
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+renderUnprocessedList();
+renderUnprocessedDetail(0);
+// 初期表示ケース（001：analyzed済み）の運賃判定を自動実行
+if (unprocessedCases[0] && unprocessedCases[0].analyzed && !unprocessedCases[0].fareResult) {
+  calcFare(unprocessedCases[0]).then(r => { unprocessedCases[0].fareResult = r; renderUnprocessedDetail(0); });
+}
+renderProcessingList();
+renderProcessingDetail(0);
+renderProcessedList();
+renderProcessedDetail(0);
+setTimeout(() => { drawLiveMap(0); startLiveUpdates(0); }, 50);
+// 初期バッジ色セット
+updatePhaseCounts();
+
+// チェックボックス初期スタイル（チェック済み=深緑）
+document.addEventListener('DOMContentLoaded', () => {});
+const ckEl = document.getElementById('logipoke-sync-check');
+if (ckEl) ckEl.style.background = 'var(--sidebar-bg)';
+</script>
+</body>
+</html>
